@@ -1,10 +1,10 @@
-package com.assignmentservice.assignmnetservice;
+package com.AssignmentService.AssignmentService;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 
 @SpringBootTest
-class AssignmnetserviceApplicationTests {
+class AssignmentServiceApplicationTests {
 
 	@Test
 	void contextLoads() {
