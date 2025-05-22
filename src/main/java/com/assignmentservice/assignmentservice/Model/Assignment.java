@@ -16,10 +16,10 @@ import java.time.LocalDateTime;
 public class Assignment {
     @Id
     private String assignmentId;
-    
+
     @NotBlank(message = "CourseId Cannot be empty")
     private String CourseId;
-    
+
     @NotBlank(message = "Title cannot be empty")
     private String title;
 

@@ -10,6 +10,7 @@ public class GridFsConfig {
 
     @Bean
     public GridFsTemplate gridFsTemplate(MongoTemplate mongoTemplate) {
-        return new GridFsTemplate(mongoTemplate.getMongoDatabaseFactory(), mongoTemplate.getConverter());
+        return new GridFsTemplate(mongoTemplate.getMongoDatabaseFactory(), 
+        mongoTemplate.getConverter());
     }
 }

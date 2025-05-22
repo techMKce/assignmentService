@@ -12,12 +12,12 @@ import java.time.LocalDateTime;
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-@Document(collection = "submission")
+@Document(collection = "submissions")
 public class Submission {
-   
+
     @Id
     private String id;
-    
+
     @NotBlank(message = "User ID cannot be empty")
     private String userId;
 
@@ -27,12 +27,6 @@ public class Submission {
     @NotNull(message = "Submission time cannot be null")
     private LocalDateTime submittedAt = LocalDateTime.now();
 
-    @NotBlank(message = "File name cannot be empty")
-    private String fileName;
-
-    @NotBlank(message = "Roll number cannot be empty")
-    private String rollNo;
-
-    @NotBlank(message = "Submission ID cannot be empty")
-    private String subId;
+    @NotBlank(message = "File number cannot be empty")
+    private String fileNo;
 }
