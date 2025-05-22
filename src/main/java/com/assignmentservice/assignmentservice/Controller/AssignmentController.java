@@ -55,18 +55,6 @@ public class AssignmentController {
         List<Assignment> assignments = assignmentService.getAllAssignments();
         return ResponseEntity.ok(assignments);
     }
-
-    @GetMapping("/getassignment")
-    public ResponseEntity<Assignment> getAssignmentById(@RequestBody AssignmentIdRequest idRequest) {
-        String id = idRequest.getAssignmentId();
-        if (id == null || id.isBlank()) {
-            return ResponseEntity.badRequest().body(null);
-        }
-        Optional<Assignment> assignment = assignmentService.getAssignmentById(id);
-        return assignment.map(ResponseEntity::ok)
-                .orElseGet(() -> ResponseEntity.notFound().build());
-    }
-
 }
 
 class AssignmentIdRequest {
