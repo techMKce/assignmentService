@@ -106,10 +106,13 @@ public class GradingController {
             Grading updatedGrading = gradingService.deleteAssignedGrade(
                     request.getUserId(),
                     request.getAssignmentId());
+
             Map<String, Object> response = new HashMap<>();
             response.put("message", "Grade deleted successfully");
             response.put("grading", updatedGrading);
             return ResponseEntity.ok(response);
+            return ResponseEntity.ok(updatedGrading);
+
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(new ErrorResponse(e.getMessage()));
         } catch (Exception e) {
