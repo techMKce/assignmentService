@@ -1,4 +1,5 @@
 L:\assignmentService\src\main\java\com\assignmentservice\assignmentservice\AssignmentServiceApplication.java
+L:\assignmentService\src\main\java\com\assignmentservice\assignmentservice\Config\CorsConfig.java
 L:\assignmentService\src\main\java\com\assignmentservice\assignmentservice\Config\GridFsConfig.java
 L:\assignmentService\src\main\java\com\assignmentservice\assignmentservice\Config\MongoIndexConfig.java
 L:\assignmentService\src\main\java\com\assignmentservice\assignmentservice\Controller\AssignmentController.java
