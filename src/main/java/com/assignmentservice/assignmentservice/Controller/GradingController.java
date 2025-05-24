@@ -13,7 +13,9 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.io.IOException;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/gradings")
@@ -26,7 +28,7 @@ public class GradingController {
     private SubmissionService submissionService;
 
     @Autowired
-    private  AssignmentService assignmentService;
+    private AssignmentService assignmentService;
 
     @PostMapping("/assign")
     public ResponseEntity<?> assignGrade(@RequestBody GradeAssignmentRequest request) {
@@ -36,7 +38,10 @@ public class GradingController {
                     request.getAssignmentId(),
                     request.getGrade(),
                     request.getFeedback());
-            return ResponseEntity.ok(grading);
+            Map<String, Object> response = new HashMap<>();
+            response.put("message", "Grade assigned successfully");
+            response.put("grading", grading);
+            return ResponseEntity.ok(response);
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(new ErrorResponse(e.getMessage()));
         } catch (Exception e) {
@@ -54,7 +59,11 @@ public class GradingController {
         try {
             List<Submission> submissions = submissionService.getSubmissionsByAssignmentId(assignmentId);
             List<Grading> gradings = gradingService.getGradingsByAssignmentId(assignmentId);
-            return ResponseEntity.ok(new SubmissionGradingResponse(submissions, gradings));
+            Map<String, Object> response = new HashMap<>();
+            response.put("message", "Submissions and gradings retrieved successfully");
+            response.put("submissions", submissions);
+            response.put("gradings", gradings);
+            return ResponseEntity.ok(response);
         } catch (Exception e) {
             return ResponseEntity.status(500)
                     .body(new ErrorResponse("Error retrieving submissions and gradings: " + e.getMessage()));
@@ -62,29 +71,32 @@ public class GradingController {
     }
 
     @GetMapping("/download")
-    public ResponseEntity<String> downloadGrades(@RequestParam("assignmentId") String assignmentId) {
+    public ResponseEntity<?> downloadGrades(@RequestParam("assignmentId") String assignmentId) {
         if (assignmentId == null || assignmentId.isBlank()) {
-            return ResponseEntity.badRequest().body("Assignment ID cannot be null or blank");
+            return ResponseEntity.badRequest().body(new ErrorResponse("Assignment ID cannot be null or blank"));
         }
 
         try {
             Assignment assignment = assignmentService.getAssignmentById(assignmentId)
                     .orElseThrow(() -> new IllegalArgumentException("Assignment not found for ID: " + assignmentId));
-            String assignmentName = assignment.getTitle().replaceAll("[^a-zA-Z0-9]", "_"); 
+            String assignmentName = assignment.getTitle().replaceAll("[^a-zA-Z0-9]", "_");
 
-            
             String csvContent = gradingService.generateGradesCsvForAssignment(assignmentId);
 
             String filename = assignmentName + ".csv";
+
+            Map<String, Object> responseMetadata = new HashMap<>();
+            responseMetadata.put("message", "Grades CSV generated successfully");
+            responseMetadata.put("filename", filename);
 
             return ResponseEntity.ok()
                     .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=" + filename)
                     .contentType(MediaType.parseMediaType("text/csv"))
                     .body(csvContent);
         } catch (IllegalArgumentException e) {
-            return ResponseEntity.badRequest().body("Error: " + e.getMessage());
+            return ResponseEntity.badRequest().body(new ErrorResponse("Error: " + e.getMessage()));
         } catch (IOException e) {
-            return ResponseEntity.status(500).body("Error generating CSV: " + e.getMessage());
+            return ResponseEntity.status(500).body(new ErrorResponse("Error generating CSV: " + e.getMessage()));
         }
     }
 
@@ -93,9 +105,11 @@ public class GradingController {
         try {
             Grading updatedGrading = gradingService.deleteAssignedGrade(
                     request.getUserId(),
-                    request.getAssignmentId()
-            );
-            return ResponseEntity.ok(updatedGrading);
+                    request.getAssignmentId());
+            Map<String, Object> response = new HashMap<>();
+            response.put("message", "Grade deleted successfully");
+            response.put("grading", updatedGrading);
+            return ResponseEntity.ok(response);
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(new ErrorResponse(e.getMessage()));
         } catch (Exception e) {

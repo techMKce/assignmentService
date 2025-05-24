@@ -74,7 +74,17 @@ public class SubmissionService {
         submission.setFileNo(fileNo);
         submission.setSubmittedAt(LocalDateTime.now());
 
-    
+        // Save the submission first
+        Submission savedSubmission;
+        try {
+            savedSubmission = submissionRepository.save(submission);
+            logger.info("Successfully saved submission for userId: {}, assignmentId: {}", userId, assignmentId);
+        } catch (Exception e) {
+            logger.error("Failed to save submission for userId: {}, assignmentId: {}", userId, assignmentId, e);
+            throw new RuntimeException("Failed to save submission: " + e.getMessage(), e);
+        }
+
+        // Auto-generate grading after saving submission
         try {
             logger.info("Attempting to auto-generate grading for userId: {}, assignmentId: {}", userId, assignmentId);
             gradingService.autoGenerateGrading(userId, assignmentId);
@@ -84,22 +94,18 @@ public class SubmissionService {
             throw new RuntimeException("Failed to auto-generate grading: " + e.getMessage(), e);
         }
 
-        // Save the submission
-        try {
-            Submission savedSubmission = submissionRepository.save(submission);
-            logger.info("Successfully saved submission for userId: {}, assignmentId: {}", userId, assignmentId);
-            return savedSubmission;
-        } catch (Exception e) {
-            logger.error("Failed to save submission for userId: {}, assignmentId: {}", userId, assignmentId, e);
-            throw new RuntimeException("Failed to save submission: " + e.getMessage(), e);
-        }
+        return savedSubmission;
     }
 
     @Transactional
     public void deleteSubmissionByAssignmentIdAndUserId(String assignmentId, String userId) {
         try {
             logger.info("Deleting submission for userId: {}, assignmentId: {}", userId, assignmentId);
-            fileService.deleteFileByAssignmentId(assignmentId);
+            Submission submission = submissionRepository.findByAssignmentIdAndUserId(assignmentId, userId)
+                    .orElseThrow(() -> new IllegalArgumentException("No submission found for userId: " + userId + ", assignmentId: " + assignmentId));
+            if (submission.getFileNo() != null) {
+                fileService.deleteFileByFileNo(submission.getFileNo());
+            }
             gradingService.deleteGrading(userId, assignmentId);
             submissionRepository.deleteByAssignmentIdAndUserId(assignmentId, userId);
             logger.info("Successfully deleted submission for userId: {}, assignmentId: {}", userId, assignmentId);

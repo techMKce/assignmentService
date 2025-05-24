@@ -9,6 +9,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.io.IOException;
 import java.io.StringWriter;
@@ -27,6 +28,7 @@ public class GradingService {
     @Autowired
     private SubmissionRepository submissionRepository;
 
+    @Transactional
     public Grading autoGenerateGrading(String userId, String assignmentId) {
         Optional<Grading> existingGrading = findExistingGrading(userId, assignmentId);
         if (existingGrading.isPresent()) {
@@ -34,12 +36,12 @@ public class GradingService {
             return existingGrading.get();
         }
 
-        List<Submission> submissions = submissionRepository.findByAssignmentIdAndUserId(assignmentId, userId);
-        if (submissions.isEmpty()) {
+        Optional<Submission> submissionOpt = submissionRepository.findByAssignmentIdAndUserId(assignmentId, userId);
+        if (submissionOpt.isEmpty()) {
             logger.error("No submission found for userId: {}, assignmentId: {}", userId, assignmentId);
             throw new IllegalStateException("Cannot auto-generate grading: No submission found for userId: " + userId + ", assignmentId: " + assignmentId);
         }
-        Submission submission = submissions.get(0);
+        Submission submission = submissionOpt.get();
         String studentName = submission.getStudentName();
         String studentRollNumber = submission.getStudentRollNumber();
 
@@ -83,8 +85,9 @@ public class GradingService {
         return grading;
     }
 
+    @Transactional
     public Grading assignGrade(String userId, String assignmentId, String grade, String feedback) {
-        if (userId == null || userId.isEmpty()) {  
+        if (userId == null || userId.isEmpty()) {
             throw new IllegalArgumentException("User ID cannot be null or empty");
         }
         if (assignmentId == null || assignmentId.isEmpty()) {
@@ -101,12 +104,12 @@ public class GradingService {
             grading.setAssignmentId(assignmentId);
         } else {
             logger.info("No existing grading entry found for userId: {}, assignmentId: {}. Creating new.", userId, assignmentId);
-            List<Submission> submissions = submissionRepository.findByAssignmentIdAndUserId(assignmentId, userId);
-            if (submissions.isEmpty()) {
+            Optional<Submission> submissionOpt = submissionRepository.findByAssignmentIdAndUserId(assignmentId, userId);
+            if (submissionOpt.isEmpty()) {
                 logger.error("No submission found for userId: {}, assignmentId: {}", userId, assignmentId);
                 throw new IllegalStateException("Cannot create grading: No submission found for userId: " + userId + ", assignmentId: " + assignmentId);
             }
-            Submission submission = submissions.get(0);
+            Submission submission = submissionOpt.get();
             grading = new Grading();
             grading.setUserId(userId);
             grading.setAssignmentId(assignmentId);
@@ -132,6 +135,7 @@ public class GradingService {
         }
     }
 
+    @Transactional
     public Grading deleteAssignedGrade(String userId, String assignmentId) {
         if (userId == null || userId.isEmpty()) {
             throw new IllegalArgumentException("User ID cannot be null or empty");
@@ -168,6 +172,7 @@ public class GradingService {
         return gradingRepository.findByAssignmentId(assignmentId);
     }
 
+    @Transactional
     public void deleteGrading(String userId, String assignmentId) {
         if (userId == null || userId.isEmpty() || assignmentId == null || assignmentId.isEmpty()) {
             throw new IllegalArgumentException("User ID and Assignment ID are required");
@@ -183,13 +188,13 @@ public class GradingService {
             csvWriter.writeNext(new String[]{"User ID", "Assignment ID", "Student Name", "Student Roll Number", "Grade", "Feedback", "Graded At"});
             for (Grading grading : gradings) {
                 csvWriter.writeNext(new String[]{
-                    grading.getUserId(),
-                    grading.getAssignmentId(),
-                    grading.getStudentName() != null ? grading.getStudentName() : "",
-                    grading.getStudentRollNumber() != null ? grading.getStudentRollNumber() : "",
-                    grading.getGrade() != null ? grading.getGrade() : "",
-                    grading.getFeedback() != null ? grading.getFeedback() : "",
-                    grading.getGradedAt() != null ? grading.getGradedAt().toString() : ""
+                        grading.getUserId(),
+                        grading.getAssignmentId(),
+                        grading.getStudentName() != null ? grading.getStudentName() : "",
+                        grading.getStudentRollNumber() != null ? grading.getStudentRollNumber() : "",
+                        grading.getGrade() != null ? grading.getGrade() : "",
+                        grading.getFeedback() != null ? grading.getFeedback() : "",
+                        grading.getGradedAt() != null ? grading.getGradedAt().toString() : ""
                 });
             }
         }
