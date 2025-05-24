@@ -19,6 +19,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.*;
 
 @RestController
+@CrossOrigin(origins = "http://localhost:8080")
 @RequestMapping("/api/assignments")
 public class AssignmentController {
 
