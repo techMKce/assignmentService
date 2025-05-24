@@ -37,7 +37,6 @@ public class AssignmentController {
             @RequestParam("dueDate") String dueDate,
             @RequestPart("file") MultipartFile file) throws IOException {
         try {
-
             Assignment assignment = new Assignment();
             assignment.setCourseId(CourseId);
             assignment.setTitle(title);
@@ -53,7 +52,10 @@ public class AssignmentController {
             assignment.setFileNo(fileNo);
             assignmentService.saveAssignment(assignment);
 
-            return ResponseEntity.ok(assignmentId);
+            Map<String, Object> response = new HashMap<>();
+            response.put("message", "Assignment created successfully");
+            response.put("assignmentId", assignmentId);
+            return ResponseEntity.ok(response);
         } catch (Exception e) {
             return ResponseEntity.badRequest()
                     .body(new ErrorResponse("Failed to create assignment: " + e.getMessage()));
@@ -69,8 +71,13 @@ public class AssignmentController {
 
         GridFSFile gridFSFile = fileService.getFileByAssignmentId(assignmentId);
         if (gridFSFile == null) {
-            return ResponseEntity.notFound().build();
+            return ResponseEntity.status(404)
+                    .body(new ErrorResponse("File not found for assignment ID: " + assignmentId));
         }
+
+        Map<String, Object> response = new HashMap<>();
+        response.put("message", "File retrieved successfully");
+        response.put("filename", gridFSFile.getFilename());
 
         return ResponseEntity.ok()
                 .contentType(MediaType.parseMediaType(gridFSFile.getMetadata().getString("_contentType")))
@@ -79,38 +86,87 @@ public class AssignmentController {
                         fileService.getGridFsTemplate().getResource(gridFSFile).getInputStream()));
     }
 
-    @PutMapping("/updateassignment")
-    public ResponseEntity<?> updateAssignment(@Valid @RequestBody Assignment assignment) {
-        String id = assignment.getAssignmentId();
+  
+    @PutMapping(value = "/updateassignment", consumes = "multipart/form-data")
+    public ResponseEntity<?> updateAssignment(
+            @RequestParam("assignmentId") String assignmentId,
+            @RequestParam(value = "courseId", required = false) String courseId,
+            @RequestParam(value = "title", required = false) String title,
+            @RequestParam(value = "description", required = false) String description,
+            @RequestParam(value = "dueDate", required = false) String dueDate,
+            @RequestPart(value = "file", required = false) MultipartFile file) throws IOException {
+        try {
+            if (assignmentId == null || assignmentId.isBlank()) {
+                return ResponseEntity.badRequest().body(new ErrorResponse("Assignment ID cannot be null or blank"));
+            }
+            Optional<Assignment> existingAssignmentOpt = assignmentService.getAssignmentById(assignmentId);
+            if (!existingAssignmentOpt.isPresent()) {
+                return ResponseEntity.status(404)
+                        .body(new ErrorResponse("Assignment not found for ID: " + assignmentId));
+            }
+
+            Assignment existingAssignment = existingAssignmentOpt.get();
+
+            // Update fields only if provided
+            if (courseId != null && !courseId.isBlank()) {
+                existingAssignment.setCourseId(courseId);
+            }
+            if (title != null && !title.isBlank()) {
+                existingAssignment.setTitle(title);
+            }
+            if (description != null && !description.isBlank()) {
+                existingAssignment.setDescription(description);
+            }
+            if (dueDate != null && !dueDate.isBlank()) {
+                DateTimeFormatter formatter = DateTimeFormatter.ISO_LOCAL_DATE_TIME;
+                existingAssignment.setDueDate(LocalDateTime.parse(dueDate, formatter));
+            }
+            if (file != null && !file.isEmpty()) {
+                // Delete existing file if present
+                if (existingAssignment.getFileNo() != null) {
+                    fileService.deleteFileByFileNo(existingAssignment.getFileNo());
+                }
+                // Upload new file
+                String newFileNo = fileService.uploadFile(file, assignmentId);
+                existingAssignment.setFileNo(newFileNo);
+            }
+
+            Assignment updatedAssignment = assignmentService.saveAssignment(existingAssignment);
+            Map<String, Object> response = new HashMap<>();
+            response.put("message", "Assignment updated successfully");
+            response.put("assignment", updatedAssignment);
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest()
+                    .body(new ErrorResponse("Failed to update assignment: " + e.getMessage()));
+        }
+    }
+
+    @DeleteMapping("/deleteassignment")
+    public ResponseEntity<?> deleteAssignment(@RequestBody AssignmentIdRequest idRequest) {
+        String id = idRequest.getAssignmentId();
         if (id == null || id.isBlank()) {
             return ResponseEntity.badRequest().body(new ErrorResponse("Assignment ID cannot be null or blank"));
         }
         Optional<Assignment> existingAssignment = assignmentService.getAssignmentById(id);
         if (existingAssignment.isPresent()) {
-            Assignment updatedAssignment = assignmentService.saveAssignment(assignment);
-            return ResponseEntity.ok(updatedAssignment);
-        }
-        return ResponseEntity.notFound().build();
-    }
-
-    @DeleteMapping("/deleteassignment")
-    public ResponseEntity<Void> deleteAssignment(@RequestBody AssignmentIdRequest idRequest) {
-        String id = idRequest.getAssignmentId();
-        if (id == null || id.isBlank()) {
-            return ResponseEntity.badRequest().build();
-        }
-        Optional<Assignment> existingAssignment = assignmentService.getAssignmentById(id);
-        if (existingAssignment.isPresent()) {
             assignmentService.deleteAssignment(id);
-            return ResponseEntity.ok().build();
+            Map<String, Object> response = new HashMap<>();
+            response.put("message", "Assignment deleted successfully");
+            response.put("assignmentId", id);
+            return ResponseEntity.ok(response);
         }
-        return ResponseEntity.notFound().build();
+        return ResponseEntity.status(404)
+                .body(new ErrorResponse("Assignment not found for ID: " + id));
     }
 
     @GetMapping
-    public ResponseEntity<List<Assignment>> getAllAssignments() {
+    public ResponseEntity<?> getAllAssignments() {
         List<Assignment> assignments = assignmentService.getAllAssignments();
-        return ResponseEntity.ok(assignments);
+        Map<String, Object> response = new HashMap<>();
+        response.put("message", "Assignments retrieved successfully");
+        response.put("assignments", assignments);
+        return ResponseEntity.ok(response);
     }
 }
 
