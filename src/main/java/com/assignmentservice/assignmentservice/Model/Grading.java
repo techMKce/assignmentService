@@ -16,7 +16,7 @@ public class Grading {
     private String id;
     private String userId;
     private String assignmentId;
-    private String studentName; 
+    private String studentName;
     private String studentRollNumber;
     private String grade;
     private String feedback;

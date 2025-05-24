@@ -13,7 +13,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
-import jakarta.validation.Valid;
 import java.io.IOException;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -86,7 +85,6 @@ public class AssignmentController {
                         fileService.getGridFsTemplate().getResource(gridFSFile).getInputStream()));
     }
 
-  
     @PutMapping(value = "/updateassignment", consumes = "multipart/form-data")
     public ResponseEntity<?> updateAssignment(
             @RequestParam("assignmentId") String assignmentId,
@@ -107,7 +105,6 @@ public class AssignmentController {
 
             Assignment existingAssignment = existingAssignmentOpt.get();
 
-            // Update fields only if provided
             if (courseId != null && !courseId.isBlank()) {
                 existingAssignment.setCourseId(courseId);
             }
@@ -122,11 +119,9 @@ public class AssignmentController {
                 existingAssignment.setDueDate(LocalDateTime.parse(dueDate, formatter));
             }
             if (file != null && !file.isEmpty()) {
-                // Delete existing file if present
                 if (existingAssignment.getFileNo() != null) {
                     fileService.deleteFileByFileNo(existingAssignment.getFileNo());
                 }
-                // Upload new file
                 String newFileNo = fileService.uploadFile(file, assignmentId);
                 existingAssignment.setFileNo(newFileNo);
             }

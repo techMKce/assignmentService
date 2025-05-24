@@ -26,7 +26,7 @@ public class GradingController {
     private SubmissionService submissionService;
 
     @Autowired
-    private  AssignmentService assignmentService;
+    private AssignmentService assignmentService;
 
     @PostMapping("/assign")
     public ResponseEntity<?> assignGrade(@RequestBody GradeAssignmentRequest request) {
@@ -70,9 +70,8 @@ public class GradingController {
         try {
             Assignment assignment = assignmentService.getAssignmentById(assignmentId)
                     .orElseThrow(() -> new IllegalArgumentException("Assignment not found for ID: " + assignmentId));
-            String assignmentName = assignment.getTitle().replaceAll("[^a-zA-Z0-9]", "_"); 
+            String assignmentName = assignment.getTitle().replaceAll("[^a-zA-Z0-9]", "_");
 
-            
             String csvContent = gradingService.generateGradesCsvForAssignment(assignmentId);
 
             String filename = assignmentName + ".csv";
@@ -93,8 +92,7 @@ public class GradingController {
         try {
             Grading updatedGrading = gradingService.deleteAssignedGrade(
                     request.getUserId(),
-                    request.getAssignmentId()
-            );
+                    request.getAssignmentId());
             return ResponseEntity.ok(updatedGrading);
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(new ErrorResponse(e.getMessage()));
