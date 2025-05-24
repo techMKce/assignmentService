@@ -70,8 +70,9 @@ public class GradingController {
         }
     }
 
-    @GetMapping("/download")
-    public ResponseEntity<?> downloadGrades(@RequestParam("assignmentId") String assignmentId) {
+    @PostMapping("/download")
+    public ResponseEntity<?> downloadGrades(@RequestBody AssignmentIdRequest request) {
+        String assignmentId = request.getAssignmentId();
         if (assignmentId == null || assignmentId.isBlank()) {
             return ResponseEntity.badRequest().body(new ErrorResponse("Assignment ID cannot be null or blank"));
         }
@@ -84,10 +85,6 @@ public class GradingController {
             String csvContent = gradingService.generateGradesCsvForAssignment(assignmentId);
 
             String filename = assignmentName + ".csv";
-
-            Map<String, Object> responseMetadata = new HashMap<>();
-            responseMetadata.put("message", "Grades CSV generated successfully");
-            responseMetadata.put("filename", filename);
 
             return ResponseEntity.ok()
                     .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=" + filename)
@@ -110,7 +107,6 @@ public class GradingController {
             Map<String, Object> response = new HashMap<>();
             response.put("message", "Grade deleted successfully");
             response.put("grading", updatedGrading);
-            return ResponseEntity.ok(response);
             return ResponseEntity.ok(updatedGrading);
 
         } catch (IllegalArgumentException e) {
