@@ -18,7 +18,7 @@ public class MongoIndexConfig {
     @PostConstruct
     public void ensureIndexes() {
         // Create a unique compound index on userId and assignmentId for the Grading collection
-        IndexOperations indexOps = mongoTemplate.indexOps("Grading");
+        IndexOperations indexOps = mongoTemplate.indexOps("grading");
         CompoundIndexDefinition indexDefinition = new CompoundIndexDefinition(
             new Document("userId", 1).append("assignmentId", 1)
         );
