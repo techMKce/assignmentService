@@ -29,13 +29,18 @@ public class SubmissionService {
     private GradingService gradingService;
 
     @Transactional
-    public Submission saveSubmission(String userId, String assignmentId, MultipartFile file) throws IOException {
-        // Validate inputs
+    public Submission saveSubmission(String userId, String assignmentId, String studentName, String studentRollNumber, MultipartFile file) throws IOException {
         if (userId == null || userId.isEmpty()) {
             throw new IllegalArgumentException("User ID cannot be null or empty");
         }
         if (assignmentId == null || assignmentId.isEmpty()) {
             throw new IllegalArgumentException("Assignment ID cannot be null or empty");
+        }
+        if (studentName == null || studentName.isEmpty()) {
+            throw new IllegalArgumentException("Student name cannot be null or empty");
+        }
+        if (studentRollNumber == null || studentRollNumber.isEmpty()) {
+            throw new IllegalArgumentException("Student roll number cannot be null or empty");
         }
         if (file == null || file.isEmpty()) {
             throw new IllegalArgumentException("File cannot be null or empty");
@@ -60,15 +65,16 @@ public class SubmissionService {
             throw e;
         }
 
-        // Create the submission
         Submission submission = new Submission();
         submission.setId(submissionId);
         submission.setUserId(userId);
+        submission.setStudentName(studentName);
+        submission.setStudentRollNumber(studentRollNumber);
         submission.setAssignmentId(assignmentId);
         submission.setFileNo(fileNo);
         submission.setSubmittedAt(LocalDateTime.now());
 
-        // Auto-generate Grading entry
+    
         try {
             logger.info("Attempting to auto-generate grading for userId: {}, assignmentId: {}", userId, assignmentId);
             gradingService.autoGenerateGrading(userId, assignmentId);

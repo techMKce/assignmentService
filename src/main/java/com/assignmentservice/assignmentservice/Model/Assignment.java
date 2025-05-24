@@ -12,7 +12,7 @@ import java.time.LocalDateTime;
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-@Document(collection = "assignments")
+@Document(collection = "Assignments")
 public class Assignment {
     @Id
     private String assignmentId;

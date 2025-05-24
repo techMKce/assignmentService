@@ -1,7 +1,9 @@
 package com.assignmentservice.assignmentservice.Controller;
 
+import com.assignmentservice.assignmentservice.Model.Assignment;
 import com.assignmentservice.assignmentservice.Model.Grading;
 import com.assignmentservice.assignmentservice.Model.Submission;
+import com.assignmentservice.assignmentservice.Service.AssignmentService;
 import com.assignmentservice.assignmentservice.Service.GradingService;
 import com.assignmentservice.assignmentservice.Service.SubmissionService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -14,7 +16,7 @@ import java.io.IOException;
 import java.util.List;
 
 @RestController
-@RequestMapping("/gradings")
+@RequestMapping("/api/gradings")
 public class GradingController {
 
     @Autowired
@@ -22,6 +24,9 @@ public class GradingController {
 
     @Autowired
     private SubmissionService submissionService;
+
+    @Autowired
+    private  AssignmentService assignmentService;
 
     @PostMapping("/assign")
     public ResponseEntity<?> assignGrade(@RequestBody GradeAssignmentRequest request) {
@@ -57,13 +62,27 @@ public class GradingController {
     }
 
     @GetMapping("/download")
-    public ResponseEntity<String> downloadGrades() {
+    public ResponseEntity<String> downloadGrades(@RequestParam("assignmentId") String assignmentId) {
+        if (assignmentId == null || assignmentId.isBlank()) {
+            return ResponseEntity.badRequest().body("Assignment ID cannot be null or blank");
+        }
+
         try {
-            String csvContent = gradingService.generateGradesCsv();
+            Assignment assignment = assignmentService.getAssignmentById(assignmentId)
+                    .orElseThrow(() -> new IllegalArgumentException("Assignment not found for ID: " + assignmentId));
+            String assignmentName = assignment.getTitle().replaceAll("[^a-zA-Z0-9]", "_"); 
+
+            
+            String csvContent = gradingService.generateGradesCsvForAssignment(assignmentId);
+
+            String filename = assignmentName + ".csv";
+
             return ResponseEntity.ok()
-                    .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=student_grades.csv")
+                    .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=" + filename)
                     .contentType(MediaType.parseMediaType("text/csv"))
                     .body(csvContent);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body("Error: " + e.getMessage());
         } catch (IOException e) {
             return ResponseEntity.status(500).body("Error generating CSV: " + e.getMessage());
         }

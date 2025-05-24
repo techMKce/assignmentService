@@ -12,7 +12,7 @@ import java.time.LocalDateTime;
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-@Document(collection = "submissions")
+@Document(collection = "Submissions")
 public class Submission {
 
     @Id
@@ -23,6 +23,12 @@ public class Submission {
 
     @NotBlank(message = "Assignment ID cannot be empty")
     private String assignmentId;
+
+    @NotBlank(message = "Student name is important")
+    private String studentName;
+
+    @NotBlank(message = "Student roll number is required")
+    private String StudentRollNumber;
 
     @NotNull(message = "Submission time cannot be null")
     private LocalDateTime submittedAt = LocalDateTime.now();

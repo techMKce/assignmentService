@@ -16,7 +16,7 @@ import java.io.IOException;
 import java.util.List;
 
 @RestController
-@RequestMapping("/submissions")
+@RequestMapping("/api/submissions")
 public class SubmissionController {
 
     @Autowired
@@ -29,9 +29,12 @@ public class SubmissionController {
     public ResponseEntity<?> submitAssignment(
             @RequestParam("userId") String userId,
             @RequestParam("assignmentId") String assignmentId,
+            @RequestParam("studentName") String studentName,
+            @RequestParam("studentRoleNumber") String studentRollNumber,
             @RequestPart("file") MultipartFile file) throws IOException {
         try {
-            Submission submission = submissionService.saveSubmission(userId, assignmentId, file);
+            Submission submission = submissionService.saveSubmission(userId,
+                    assignmentId, studentName, studentRollNumber, file);
             return ResponseEntity.ok(submission.getId());
         } catch (Exception e) {
             return ResponseEntity.badRequest()

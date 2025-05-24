@@ -20,7 +20,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.*;
 
 @RestController
-@RequestMapping("/assignments")
+@RequestMapping("/api/assignments")
 public class AssignmentController {
 
     @Autowired

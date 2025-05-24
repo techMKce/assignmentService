@@ -1,7 +1,9 @@
 package com.assignmentservice.assignmentservice.Service;
 
 import com.assignmentservice.assignmentservice.Model.Grading;
+import com.assignmentservice.assignmentservice.Model.Submission;
 import com.assignmentservice.assignmentservice.Repository.GradingRepository;
+import com.assignmentservice.assignmentservice.Repository.SubmissionRepository;
 import com.opencsv.CSVWriter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -22,7 +24,9 @@ public class GradingService {
     @Autowired
     private GradingRepository gradingRepository;
 
-    
+    @Autowired
+    private SubmissionRepository submissionRepository;
+
     public Grading autoGenerateGrading(String userId, String assignmentId) {
         Optional<Grading> existingGrading = findExistingGrading(userId, assignmentId);
         if (existingGrading.isPresent()) {
@@ -30,9 +34,20 @@ public class GradingService {
             return existingGrading.get();
         }
 
+        List<Submission> submissions = submissionRepository.findByAssignmentIdAndUserId(assignmentId, userId);
+        if (submissions.isEmpty()) {
+            logger.error("No submission found for userId: {}, assignmentId: {}", userId, assignmentId);
+            throw new IllegalStateException("Cannot auto-generate grading: No submission found for userId: " + userId + ", assignmentId: " + assignmentId);
+        }
+        Submission submission = submissions.get(0);
+        String studentName = submission.getStudentName();
+        String studentRollNumber = submission.getStudentRollNumber();
+
         Grading grading = new Grading();
         grading.setUserId(userId);
         grading.setAssignmentId(assignmentId);
+        grading.setStudentName(studentName);
+        grading.setStudentRollNumber(studentRollNumber);
         grading.setGrade(null);
         grading.setFeedback(null);
         grading.setGradedAt(LocalDateTime.now());
@@ -69,7 +84,7 @@ public class GradingService {
     }
 
     public Grading assignGrade(String userId, String assignmentId, String grade, String feedback) {
-        if (userId == null || userId.isEmpty()) {
+        if (userId == null || userId.isEmpty()) {  
             throw new IllegalArgumentException("User ID cannot be null or empty");
         }
         if (assignmentId == null || assignmentId.isEmpty()) {
@@ -86,9 +101,17 @@ public class GradingService {
             grading.setAssignmentId(assignmentId);
         } else {
             logger.info("No existing grading entry found for userId: {}, assignmentId: {}. Creating new.", userId, assignmentId);
+            List<Submission> submissions = submissionRepository.findByAssignmentIdAndUserId(assignmentId, userId);
+            if (submissions.isEmpty()) {
+                logger.error("No submission found for userId: {}, assignmentId: {}", userId, assignmentId);
+                throw new IllegalStateException("Cannot create grading: No submission found for userId: " + userId + ", assignmentId: " + assignmentId);
+            }
+            Submission submission = submissions.get(0);
             grading = new Grading();
             grading.setUserId(userId);
             grading.setAssignmentId(assignmentId);
+            grading.setStudentName(submission.getStudentName());
+            grading.setStudentRollNumber(submission.getStudentRollNumber());
         }
 
         if (grade == null || grade.isEmpty()) {
@@ -157,11 +180,13 @@ public class GradingService {
 
         StringWriter stringWriter = new StringWriter();
         try (CSVWriter csvWriter = new CSVWriter(stringWriter)) {
-            csvWriter.writeNext(new String[]{"User ID", "Assignment ID", "Grade", "Feedback", "Graded At"});
+            csvWriter.writeNext(new String[]{"User ID", "Assignment ID", "Student Name", "Student Roll Number", "Grade", "Feedback", "Graded At"});
             for (Grading grading : gradings) {
                 csvWriter.writeNext(new String[]{
                     grading.getUserId(),
                     grading.getAssignmentId(),
+                    grading.getStudentName() != null ? grading.getStudentName() : "",
+                    grading.getStudentRollNumber() != null ? grading.getStudentRollNumber() : "",
                     grading.getGrade() != null ? grading.getGrade() : "",
                     grading.getFeedback() != null ? grading.getFeedback() : "",
                     grading.getGradedAt() != null ? grading.getGradedAt().toString() : ""
@@ -169,5 +194,44 @@ public class GradingService {
             }
         }
         return stringWriter.toString();
+    }
+
+    public String generateGradesCsvForAssignment(String assignmentId) throws IOException {
+        List<Grading> gradings = getGradingsByAssignmentId(assignmentId);
+        if (gradings.isEmpty()) {
+            throw new IllegalArgumentException("No gradings found for assignment ID: " + assignmentId);
+        }
+
+        StringWriter writer = new StringWriter();
+        writer.write("S.No,Name,RollNumber,Grade\n");
+
+        int serialNumber = 1;
+        for (Grading grading : gradings) {
+            String studentName = grading.getStudentName() != null ? grading.getStudentName() : "Unknown";
+            String rollNumber = grading.getStudentRollNumber() != null ? grading.getStudentRollNumber() : "Unknown";
+            String grade = grading.getGrade() != null ? grading.getGrade() : "Not Graded";
+
+            writer.write(String.format("%d,%s,%s,%s\n",
+                    serialNumber++,
+                    escapeCsv(studentName),
+                    escapeCsv(rollNumber),
+                    escapeCsv(grade)));
+        }
+
+        if (serialNumber == 1) {
+            throw new IllegalArgumentException("No gradings found for assignment ID: " + assignmentId);
+        }
+
+        return writer.toString();
+    }
+
+    private String escapeCsv(String value) {
+        if (value == null) {
+            return "";
+        }
+        if (value.contains(",") || value.contains("\"") || value.contains("\n")) {
+            return "\"" + value.replace("\"", "\"\"") + "\"";
+        }
+        return value;
     }
 }
