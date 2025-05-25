@@ -4,6 +4,7 @@ com\assignmentservice\assignmentservice\Controller\AssignmentIdRequest.class
 com\assignmentservice\assignmentservice\Model\Submission.class
 com\assignmentservice\assignmentservice\Controller\GradingController.class
 com\assignmentservice\assignmentservice\Config\CorsConfig.class
+com\assignmentservice\assignmentservice\Controller\CourseIdRequest.class
 com\assignmentservice\assignmentservice\Controller\GradingController$GradeAssignmentRequest.class
 com\assignmentservice\assignmentservice\Service\SubmissionService.class
 com\assignmentservice\assignmentservice\Repository\SubmissionRepository.class
