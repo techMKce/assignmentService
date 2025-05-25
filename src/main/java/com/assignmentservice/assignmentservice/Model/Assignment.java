@@ -18,7 +18,7 @@ public class Assignment {
     private String assignmentId;
 
     @NotBlank(message = "CourseId Cannot be empty")
-    private String CourseId;
+    private String courseId;
 
     @NotBlank(message = "Title cannot be empty")
     private String title;
