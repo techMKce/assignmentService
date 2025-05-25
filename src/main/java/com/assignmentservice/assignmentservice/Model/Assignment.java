@@ -2,6 +2,8 @@ package com.assignmentservice.assignmentservice.Model;
 
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
+import org.springframework.data.mongodb.core.mapping.Field;
+
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -18,6 +20,7 @@ public class Assignment {
     private String assignmentId;
 
     @NotBlank(message = "CourseId Cannot be empty")
+    @Field("courseId")
     private String courseId;
 
     @NotBlank(message = "Title cannot be empty")

@@ -31,14 +31,14 @@ public class AssignmentController {
 
     @PostMapping(value = "/createassignment", consumes = "multipart/form-data")
     public ResponseEntity<?> createAssignment(
-            @RequestParam("CourseId") String CourseId,
+            @RequestParam("courseId") String courseId,
             @RequestParam("title") String title,
             @RequestParam("description") String description,
             @RequestParam("dueDate") String dueDate,
             @RequestPart("file") MultipartFile file) throws IOException {
         try {
             Assignment assignment = new Assignment();
-            assignment.setCourseId(CourseId);
+            assignment.setCourseId(courseId);
             assignment.setTitle(title);
             assignment.setDescription(description);
 
