@@ -67,4 +67,14 @@ public class AssignmentService {
         }
         return assignment;
     }
+
+    public List<Assignment> getAssignmentsByCourseId(String courseId) {
+        if (courseId == null || courseId.isBlank()) {
+            throw new ValidationException("Course ID cannot be null or empty");
+        }
+        logger.info("Fetching assignments for course ID: {}", courseId);
+        List<Assignment> assignments = assignmentRepository.findByCourseId(courseId);
+        logger.info("Retrieved {} assignments for course ID: {}", assignments.size(), courseId);
+        return assignments;
+    }
 }

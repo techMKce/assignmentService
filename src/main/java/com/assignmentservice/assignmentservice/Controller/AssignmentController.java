@@ -164,6 +164,36 @@ public class AssignmentController {
         response.put("assignments", assignments);
         return ResponseEntity.ok(response);
     }
+
+    @PostMapping("/getassignment")
+    public ResponseEntity<?> getAssignmentById(@RequestBody AssignmentIdRequest idRequest) {
+        String assignmentId = idRequest.getAssignmentId();
+        if (assignmentId == null || assignmentId.isBlank()) {
+            return ResponseEntity.badRequest().body(new ErrorResponse("Assignment ID cannot be null or blank"));
+        }
+        Optional<Assignment> assignmentOpt = assignmentService.getAssignmentById(assignmentId);
+        if (!assignmentOpt.isPresent()) {
+            return ResponseEntity.status(404)
+                    .body(new ErrorResponse("Assignment not found for ID: " + assignmentId));
+        }
+        Map<String, Object> response = new HashMap<>();
+        response.put("message", "Assignment retrieved successfully");
+        response.put("assignment", assignmentOpt.get());
+        return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/bycourseid")
+    public ResponseEntity<?> getAssignmentsByCourseId(@RequestBody CourseIdRequest courseIdRequest) {
+        String courseId = courseIdRequest.getCourseId();
+        if (courseId == null || courseId.isBlank()) {
+            return ResponseEntity.badRequest().body(new ErrorResponse("Course ID cannot be null or blank"));
+        }
+        List<Assignment> assignments = assignmentService.getAssignmentsByCourseId(courseId);
+        Map<String, Object> response = new HashMap<>();
+        response.put("message", "Assignments retrieved successfully for course ID: " + courseId);
+        response.put("assignments", assignments);
+        return ResponseEntity.ok(response);
+    }
 }
 
 class ErrorResponse {
@@ -191,5 +221,17 @@ class AssignmentIdRequest {
 
     public void setAssignmentId(String assignmentId) {
         this.assignmentId = assignmentId;
+    }
+}
+
+class CourseIdRequest {
+    private String courseId;
+
+    public String getCourseId() {
+        return courseId;
+    }
+
+    public void setCourseId(String courseId) {
+        this.courseId = courseId;
     }
 }
