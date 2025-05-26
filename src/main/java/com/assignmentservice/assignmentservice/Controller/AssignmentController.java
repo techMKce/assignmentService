@@ -156,7 +156,7 @@ public class AssignmentController {
                 .body(new ErrorResponse("Assignment not found for ID: " + id));
     }
 
-    @GetMapping
+    @GetMapping("/all")
     public ResponseEntity<?> getAllAssignments() {
         List<Assignment> assignments = assignmentService.getAllAssignments();
         Map<String, Object> response = new HashMap<>();
@@ -165,9 +165,8 @@ public class AssignmentController {
         return ResponseEntity.ok(response);
     }
 
-    @PostMapping("/getassignment")
-    public ResponseEntity<?> getAssignmentById(@RequestBody AssignmentIdRequest idRequest) {
-        String assignmentId = idRequest.getAssignmentId();
+    @GetMapping
+    public ResponseEntity<?> getAssignmentById(@RequestParam("id") String assignmentId) {
         if (assignmentId == null || assignmentId.isBlank()) {
             return ResponseEntity.badRequest().body(new ErrorResponse("Assignment ID cannot be null or blank"));
         }
