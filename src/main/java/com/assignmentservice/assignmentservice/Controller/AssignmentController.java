@@ -29,7 +29,7 @@ public class AssignmentController {
     @Autowired
     private FileService fileService;
 
-    @PostMapping(value = "/createassignment", consumes = "multipart/form-data")
+    @PostMapping(consumes = "multipart/form-data")
     public ResponseEntity<?> createAssignment(
             @RequestParam("courseId") String courseId,
             @RequestParam("title") String title,
@@ -62,9 +62,9 @@ public class AssignmentController {
         }
     }
 
-    @PostMapping("/downloadfile")
-    public ResponseEntity<?> downloadFile(@RequestBody AssignmentIdRequest idRequest) throws IOException {
-        String assignmentId = idRequest.getAssignmentId();
+    @GetMapping("/download")
+    public ResponseEntity<?> downloadFile(@RequestParam("assignmentId") String assignmentId) throws IOException {
+
         if (assignmentId == null || assignmentId.isBlank()) {
             return ResponseEntity.badRequest().body(new ErrorResponse("Assignment ID cannot be null or blank"));
         }
@@ -86,7 +86,7 @@ public class AssignmentController {
                         fileService.getGridFsTemplate().getResource(gridFSFile).getInputStream()));
     }
 
-    @PutMapping(value = "/updateassignment", consumes = "multipart/form-data")
+    @PutMapping( consumes = "multipart/form-data")
     public ResponseEntity<?> updateAssignment(
             @RequestParam("assignmentId") String assignmentId,
             @RequestParam(value = "courseId", required = false) String courseId,
@@ -138,9 +138,8 @@ public class AssignmentController {
         }
     }
 
-    @DeleteMapping("/deleteassignment")
-    public ResponseEntity<?> deleteAssignment(@RequestBody AssignmentIdRequest idRequest) {
-        String id = idRequest.getAssignmentId();
+    @DeleteMapping
+    public ResponseEntity<?> deleteAssignment(@RequestParam("assignmentId") String id) {
         if (id == null || id.isBlank()) {
             return ResponseEntity.badRequest().body(new ErrorResponse("Assignment ID cannot be null or blank"));
         }
@@ -181,9 +180,8 @@ public class AssignmentController {
         return ResponseEntity.ok(response);
     }
 
-    @PostMapping("/bycourseid")
-    public ResponseEntity<?> getAssignmentsByCourseId(@RequestBody CourseIdRequest courseIdRequest) {
-        String courseId = courseIdRequest.getCourseId();
+    @GetMapping
+    public ResponseEntity<?> getAssignmentsByCourseId(@RequestParam("courseId") String courseId) {
         if (courseId == null || courseId.isBlank()) {
             return ResponseEntity.badRequest().body(new ErrorResponse("Course ID cannot be null or blank"));
         }
