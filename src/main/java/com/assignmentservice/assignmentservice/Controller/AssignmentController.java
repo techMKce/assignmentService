@@ -164,7 +164,7 @@ public class AssignmentController {
         return ResponseEntity.ok(response);
     }
 
-    @GetMapping
+    @GetMapping("/id")
     public ResponseEntity<?> getAssignmentById(@RequestParam("assignmentId") String assignmentId) {
         if (assignmentId == null || assignmentId.isBlank()) {
             return ResponseEntity.badRequest().body(new ErrorResponse("Assignment ID cannot be null or blank"));
