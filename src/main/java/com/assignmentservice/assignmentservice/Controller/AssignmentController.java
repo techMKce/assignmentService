@@ -180,7 +180,7 @@ public class AssignmentController {
         return ResponseEntity.ok(response);
     }
 
-    @GetMapping
+    @GetMapping("/course")
     public ResponseEntity<?> getAssignmentsByCourseId(@RequestParam("courseId") String courseId) {
         if (courseId == null || courseId.isBlank()) {
             return ResponseEntity.badRequest().body(new ErrorResponse("Course ID cannot be null or blank"));
