@@ -6,6 +6,8 @@ import com.assignmentservice.assignmentservice.Model.Submission;
 import com.assignmentservice.assignmentservice.Service.AssignmentService;
 import com.assignmentservice.assignmentservice.Service.GradingService;
 import com.assignmentservice.assignmentservice.Service.SubmissionService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -22,6 +24,8 @@ import java.util.Map;
 @RequestMapping("/api/gradings")
 public class GradingController {
 
+    private static final Logger logger = LoggerFactory.getLogger(GradingController.class);
+
     @Autowired
     private GradingService gradingService;
 
@@ -33,9 +37,10 @@ public class GradingController {
 
     @PostMapping("/assign")
     public ResponseEntity<?> assignGrade(@RequestBody GradeAssignmentRequest request) {
+        logger.info("Assigning grade for studentRollNumber: {}, assignmentId: {}", request.getStudentRollNumber(), request.getAssignmentId());
         try {
             Grading grading = gradingService.assignGrade(
-                    request.getUserId(),
+                    request.getStudentRollNumber(),
                     request.getAssignmentId(),
                     request.getGrade(),
                     request.getFeedback());
@@ -44,8 +49,10 @@ public class GradingController {
             response.put("grading", grading);
             return ResponseEntity.ok(response);
         } catch (IllegalArgumentException e) {
+            logger.error("Invalid request: {}", e.getMessage());
             return ResponseEntity.badRequest().body(new ErrorResponse(e.getMessage()));
         } catch (Exception e) {
+            logger.error("Error assigning grade: ", e);
             return ResponseEntity.status(500).body(new ErrorResponse("Error assigning grade: " + e.getMessage()));
         }
     }
@@ -54,6 +61,7 @@ public class GradingController {
     public ResponseEntity<?> getSubmissionsAndGradingsByAssignmentId(@RequestBody AssignmentIdRequest request) {
         String assignmentId = request.getAssignmentId();
         if (assignmentId == null || assignmentId.isBlank()) {
+            logger.warn("Assignment ID is null or blank");
             return ResponseEntity.badRequest().body(new ErrorResponse("Assignment ID cannot be null or blank"));
         }
 
@@ -66,6 +74,7 @@ public class GradingController {
             response.put("gradings", gradings);
             return ResponseEntity.ok(response);
         } catch (Exception e) {
+            logger.error("Error retrieving submissions and gradings: ", e);
             return ResponseEntity.status(500)
                     .body(new ErrorResponse("Error retrieving submissions and gradings: " + e.getMessage()));
         }
@@ -75,6 +84,7 @@ public class GradingController {
     public ResponseEntity<?> downloadGrades(@RequestBody AssignmentIdRequest request) {
         String assignmentId = request.getAssignmentId();
         if (assignmentId == null || assignmentId.isBlank()) {
+            logger.warn("Assignment ID is null or blank");
             return ResponseEntity.badRequest().body(new ErrorResponse("Assignment ID cannot be null or blank"));
         }
 
@@ -92,43 +102,47 @@ public class GradingController {
                     .contentType(MediaType.parseMediaType("text/csv"))
                     .body(csvContent);
         } catch (IllegalArgumentException e) {
+            logger.error("Invalid request: {}", e.getMessage());
             return ResponseEntity.badRequest().body(new ErrorResponse("Error: " + e.getMessage()));
         } catch (IOException e) {
+            logger.error("Error generating CSV: ", e);
             return ResponseEntity.status(500).body(new ErrorResponse("Error generating CSV: " + e.getMessage()));
         }
     }
 
     @DeleteMapping("/delete")
     public ResponseEntity<?> deleteAssignedGrade(@RequestBody GradeAssignmentRequest request) {
+        logger.info("Deleting grade for studentRollNumber: {}, assignmentId: {}", request.getStudentRollNumber(), request.getAssignmentId());
         try {
             Grading updatedGrading = gradingService.deleteAssignedGrade(
-                    request.getUserId(),
+                    request.getStudentRollNumber(),
                     request.getAssignmentId());
 
             Map<String, Object> response = new HashMap<>();
             response.put("message", "Grade deleted successfully");
             response.put("grading", updatedGrading);
-            return ResponseEntity.ok(updatedGrading);
-
+            return ResponseEntity.ok(response);
         } catch (IllegalArgumentException e) {
+            logger.error("Invalid request: {}", e.getMessage());
             return ResponseEntity.badRequest().body(new ErrorResponse(e.getMessage()));
         } catch (Exception e) {
+            logger.error("Error deleting grade: ", e);
             return ResponseEntity.status(500).body(new ErrorResponse("Error deleting grade: " + e.getMessage()));
         }
     }
 
     public static class GradeAssignmentRequest {
-        private String userId;
+        private String studentRollNumber;
         private String assignmentId;
         private String grade;
         private String feedback;
 
-        public String getUserId() {
-            return userId;
+        public String getStudentRollNumber() {
+            return studentRollNumber;
         }
 
-        public void setUserId(String userId) {
-            this.userId = userId;
+        public void setStudentRollNumber(String studentRollNumber) {
+            this.studentRollNumber = studentRollNumber;
         }
 
         public String getAssignmentId() {

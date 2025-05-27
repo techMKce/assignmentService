@@ -30,7 +30,12 @@ public class GradingService {
 
     @Transactional
     public Grading autoGenerateGrading(String studentRollNumber, String assignmentId) {
-        Optional<Grading> existingGrading = findExistingGrading(studentRollNumber, assignmentId);
+        if (studentRollNumber == null || assignmentId == null) {
+            logger.error("StudentRollNumber or AssignmentId is null");
+            throw new IllegalArgumentException("Student Roll Number and Assignment ID cannot be null");
+        }
+
+        Optional<Grading> existingGrading = gradingRepository.findByStudentRollNumberAndAssignmentId(studentRollNumber, assignmentId);
         if (existingGrading.isPresent()) {
             logger.warn("Grading entry already exists for studentRollNumber: {}, assignmentId: {}. Skipping auto-generation.", studentRollNumber, assignmentId);
             return existingGrading.get();
@@ -62,27 +67,6 @@ public class GradingService {
         }
     }
 
-    private Optional<Grading> findExistingGrading(String studentRollNumber, String assignmentId) {
-        Optional<Grading> grading = gradingRepository.findBystudentRollNumberAndAssignmentId(studentRollNumber, assignmentId);
-        if (grading.isPresent()) {
-            return grading;
-        }
-
-        String duplicatedUserId = studentRollNumber + "," + studentRollNumber;
-        String duplicatedAssignmentId = assignmentId + "," + assignmentId;
-        grading = gradingRepository.findBystudentRollNumberAndAssignmentId(duplicatedUserId, duplicatedAssignmentId);
-        if (grading.isPresent()) {
-            return grading;
-        }
-
-        grading = gradingRepository.findBystudentRollNumberAndAssignmentId(studentRollNumber, duplicatedAssignmentId);
-        if (grading.isPresent()) {
-            return grading;
-        }
-        grading = gradingRepository.findBystudentRollNumberAndAssignmentId(duplicatedUserId, assignmentId);
-        return grading;
-    }
-
     @Transactional
     public Grading assignGrade(String studentRollNumber, String assignmentId, String grade, String feedback) {
         if (studentRollNumber == null || studentRollNumber.isEmpty()) {
@@ -92,14 +76,12 @@ public class GradingService {
             throw new IllegalArgumentException("Assignment ID cannot be null or empty");
         }
 
-        Optional<Grading> existingGrading = findExistingGrading(studentRollNumber, assignmentId);
+        Optional<Grading> existingGrading = gradingRepository.findByStudentRollNumberAndAssignmentId(studentRollNumber, assignmentId);
         Grading grading;
 
         if (existingGrading.isPresent()) {
             logger.info("Found existing grading entry for studentRollNumber: {}, assignmentId: {}. Updating.", studentRollNumber, assignmentId);
             grading = existingGrading.get();
-            grading.setStudentRollNumber(studentRollNumber);
-            grading.setAssignmentId(assignmentId);
         } else {
             logger.info("No existing grading entry found for studentRollNumber: {}, assignmentId: {}. Creating new.", studentRollNumber, assignmentId);
             Optional<Submission> submissionOpt = submissionRepository.findByAssignmentIdAndStudentRollNumber(assignmentId, studentRollNumber);
@@ -112,7 +94,6 @@ public class GradingService {
             grading.setStudentRollNumber(studentRollNumber);
             grading.setAssignmentId(assignmentId);
             grading.setStudentName(submission.getStudentName());
-            grading.setStudentRollNumber(submission.getStudentRollNumber());
         }
 
         if (grade == null || grade.isEmpty()) {
@@ -142,7 +123,7 @@ public class GradingService {
             throw new IllegalArgumentException("Assignment ID cannot be null or empty");
         }
 
-        Optional<Grading> existingGrading = findExistingGrading(studentRollNumber, assignmentId);
+        Optional<Grading> existingGrading = gradingRepository.findByStudentRollNumberAndAssignmentId(studentRollNumber, assignmentId);
         if (!existingGrading.isPresent()) {
             logger.warn("No grading entry found for studentRollNumber: {}, assignmentId: {}", studentRollNumber, assignmentId);
             throw new IllegalArgumentException("No grading entry found for the given student and assignment");
@@ -175,7 +156,7 @@ public class GradingService {
         if (studentRollNumber == null || studentRollNumber.isEmpty() || assignmentId == null || assignmentId.isEmpty()) {
             throw new IllegalArgumentException("Student Roll Number and Assignment ID are required");
         }
-        gradingRepository.deleteBystudentRollNumberAndAssignmentId(studentRollNumber, assignmentId);
+        gradingRepository.deleteByStudentRollNumberAndAssignmentId(studentRollNumber, assignmentId);
     }
 
     public String generateGradesCsv() throws IOException {
@@ -183,10 +164,10 @@ public class GradingService {
 
         StringWriter stringWriter = new StringWriter();
         try (CSVWriter csvWriter = new CSVWriter(stringWriter)) {
-            csvWriter.writeNext(new String[]{ "Assignment ID", "Student Name", "Student Roll Number", "Grade", "Feedback", "Graded At"});
+            csvWriter.writeNext(new String[]{"Assignment ID", "Student Name", "Student Roll Number", "Grade", "Feedback", "Graded At"});
             for (Grading grading : gradings) {
                 csvWriter.writeNext(new String[]{
-                        grading.getAssignmentId(),
+                        grading.getAssignmentId() != null ? grading.getAssignmentId() : "",
                         grading.getStudentName() != null ? grading.getStudentName() : "",
                         grading.getStudentRollNumber() != null ? grading.getStudentRollNumber() : "",
                         grading.getGrade() != null ? grading.getGrade() : "",
