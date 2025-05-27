@@ -35,7 +35,8 @@ public class AssignmentController {
             @RequestParam("title") String title,
             @RequestParam("description") String description,
             @RequestParam("dueDate") String dueDate,
-            @RequestPart("file") MultipartFile file) throws IOException {
+            @RequestPart("file") MultipartFile file,
+            @RequestParam("referenceURL") String referenceURL) throws IOException {
         try {
             Assignment assignment = new Assignment();
             assignment.setCourseId(courseId);
