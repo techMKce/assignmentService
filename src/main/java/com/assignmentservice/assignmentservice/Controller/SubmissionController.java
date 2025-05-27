@@ -113,6 +113,27 @@ public class SubmissionController {
                     .body(new ErrorResponse("Internal server error: " + e.getMessage()));
         }
     }
+
+    @GetMapping("/id")
+    public ResponseEntity<?> getSubmissionById(@RequestParam("submissionId") String submissionId) {
+        if (submissionId == null || submissionId.isBlank()) {
+            return ResponseEntity.badRequest().body(new ErrorResponse("Submission ID cannot be null or blank"));
+        }
+
+        try {
+            Submission submission = submissionService.getSubmissionById(submissionId);
+            if (submission == null) {
+                return ResponseEntity.status(404).body(new ErrorResponse("Submission not found"));
+            }
+
+            Map<String, Object> response = new HashMap<>();
+            response.put("message", "Submission retrieved successfully");
+            response.put("submission", submission);
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(new ErrorResponse("Internal server error: " + e.getMessage()));
+        }
+    }
     @Data
     public static class DeleteSubmissionRequest {
         private String assignmentId;
