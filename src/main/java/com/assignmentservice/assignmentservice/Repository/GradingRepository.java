@@ -7,7 +7,7 @@ import java.util.List;
 import java.util.Optional;
 
 public interface GradingRepository extends MongoRepository<Grading, String> {
-    Optional<Grading> findByUserIdAndAssignmentId(String userId, String assignmentId);
+    Optional<Grading> findBystudentRollNumberAndAssignmentId(String studentRollNumber, String assignmentId);
     List<Grading> findByAssignmentId(String assignmentId);
-    void deleteByUserIdAndAssignmentId(String userId, String assignmentId);
+    void deleteBystudentRollNumberAndAssignmentId(String studentRollNumber, String assignmentId);
 }

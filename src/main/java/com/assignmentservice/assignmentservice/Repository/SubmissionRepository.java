@@ -14,9 +14,9 @@ public interface SubmissionRepository extends MongoRepository<Submission, String
 
     List<Submission> findByAssignmentId(String assignmentId);
 
-    @Query("{ 'assignmentId': ?0, 'userId': ?1 }")
-    Optional<Submission> findByAssignmentIdAndUserId(String assignmentId, String userId);
+    @Query("{ 'assignmentId': ?0, 'studentRollNumber': ?1 }")
+    Optional<Submission> findByAssignmentIdAndStudentRollNumber(String assignmentId, String studentRollNumber);
 
-    @Query(value = "{ 'assignmentId': ?0, 'userId': ?1 }", delete = true)
-    void deleteByAssignmentIdAndUserId(String assignmentId, String userId);
+    @Query(value = "{ 'assignmentId': ?0, 'studentRollNumber': ?1 }", delete = true)
+    void deleteByAssignmentIdAndStudentRollNumber(String assignmentId, String studentRollNumber);
 }
