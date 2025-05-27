@@ -18,7 +18,7 @@ import java.util.List;
 import java.util.Map;
 
 @RestController
-@CrossOrigin(origins = "http://localhost:8085")
+@CrossOrigin(origins = "http://localhost:8080")
 @RequestMapping("/api/gradings")
 public class GradingController {
 
