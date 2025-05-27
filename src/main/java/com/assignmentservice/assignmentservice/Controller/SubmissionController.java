@@ -17,6 +17,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.util.*;
+import com.assignmentservice.assignmentservice.Model.StudentProgress;
 
 @RestController
 @CrossOrigin(origins = "http://localhost:8080")
@@ -31,14 +32,17 @@ public class SubmissionController {
     @Autowired
     private FileService fileService;
 
-    @PostMapping( consumes = "multipart/form-data")
+    @Autowired
+    private com.assignmentservice.assignmentservice.Service.StudentProgressService studentProgressService;
+
+    @PostMapping(consumes = "multipart/form-data")
     public ResponseEntity<?> submitAssignment(
             @RequestParam("assignmentId") String assignmentId,
             @RequestParam("studentName") String studentName,
             @RequestParam("studentRollNumber") String studentRollNumber,
             @RequestPart("file") MultipartFile file) throws IOException {
         try {
-            Submission submission = submissionService.saveSubmission( assignmentId, studentName, studentRollNumber, file);
+            Submission submission = submissionService.saveSubmission(assignmentId, studentName, studentRollNumber, file);
             Map<String, Object> response = new HashMap<>();
             response.put("message", "Submission created successfully");
             response.put("submissionId", submission.getId());
@@ -134,6 +138,81 @@ public class SubmissionController {
             return ResponseEntity.status(500).body(new ErrorResponse("Internal server error: " + e.getMessage()));
         }
     }
+
+    @GetMapping("/progress")
+    public ResponseEntity<?> getStudentProgress(@RequestParam("studentRollNumber") String studentRollNumber,
+                                               @RequestParam("courseId") String courseId) {
+        if (studentRollNumber == null || studentRollNumber.isBlank() || courseId == null || courseId.isBlank()) {
+            logger.warn("Invalid request: studentRollNumber or courseId is null or blank");
+            return ResponseEntity.badRequest()
+                    .body(new ErrorResponse("Student Roll Number and Course ID cannot be null or blank"));
+        }
+
+        try {
+            Optional<StudentProgress> progressOpt = studentProgressService.getProgressByStudentAndCourse(studentRollNumber, courseId);
+            double progressPercentage;
+            if (progressOpt.isPresent()) {
+                progressPercentage = progressOpt.get().getProgressPercentage();
+                logger.info("Retrieved cached progress {}% for studentRollNumber: {}, courseId: {}", progressPercentage, studentRollNumber, courseId);
+            } else {
+                progressPercentage = studentProgressService.calculateProgress(studentRollNumber, courseId);
+                logger.info("Calculated progress {}% for studentRollNumber: {}, courseId: {}", progressPercentage, studentRollNumber, courseId);
+            }
+
+            Map<String, Object> response = new HashMap<>();
+            response.put("message", "Progress retrieved successfully");
+            response.put("studentRollNumber", studentRollNumber);
+            response.put("courseId", courseId);
+            response.put("progress", progressPercentage);
+            return ResponseEntity.ok(response);
+        } catch (IllegalArgumentException e) {
+            logger.error("Failed to retrieve progress for studentRollNumber: {}, courseId: {}, reason: {}", studentRollNumber, courseId, e.getMessage());
+            return ResponseEntity.badRequest()
+                    .body(new ErrorResponse("Failed to retrieve progress: " + e.getMessage()));
+        } catch (Exception e) {
+            logger.error("Unexpected error retrieving progress for studentRollNumber: {}, courseId: {}", studentRollNumber, courseId, e);
+            return ResponseEntity.status(500)
+                    .body(new ErrorResponse("Internal server error: " + e.getMessage()));
+        }
+    }
+
+    @GetMapping("/grade/average")
+    public ResponseEntity<?> getStudentAverageGrade(@RequestParam("studentRollNumber") String studentRollNumber,
+                                                   @RequestParam("courseId") String courseId) {
+        if (studentRollNumber == null || studentRollNumber.isBlank() || courseId == null || courseId.isBlank()) {
+            logger.warn("Invalid request: studentRollNumber or courseId is null or blank");
+            return ResponseEntity.badRequest()
+                    .body(new ErrorResponse("Student Roll Number and Course ID cannot be null or blank"));
+        }
+
+        try {
+            Optional<StudentProgress> progressOpt = studentProgressService.getProgressByStudentAndCourse(studentRollNumber, courseId);
+            Double averageGrade;
+            if (progressOpt.isPresent() && progressOpt.get().getAverageGrade() != null) {
+                averageGrade = progressOpt.get().getAverageGrade();
+                logger.info("Retrieved cached average grade {} for studentRollNumber: {}, courseId: {}", averageGrade, studentRollNumber, courseId);
+            } else {
+                averageGrade = studentProgressService.calculateAverageGrade(studentRollNumber, courseId);
+                logger.info("Calculated average grade {} for studentRollNumber: {}, courseId: {}", averageGrade != null ? averageGrade : "Not graded", studentRollNumber, courseId);
+            }
+
+            Map<String, Object> response = new HashMap<>();
+            response.put("message", "Average grade retrieved successfully");
+            response.put("studentRollNumber", studentRollNumber);
+            response.put("courseId", courseId);
+            response.put("averageGrade", averageGrade != null ? averageGrade : "Not graded");
+            return ResponseEntity.ok(response);
+        } catch (IllegalArgumentException e) {
+            logger.error("Failed to retrieve average grade for studentRollNumber: {}, courseId: {}, reason: {}", studentRollNumber, courseId, e.getMessage());
+            return ResponseEntity.badRequest()
+                    .body(new ErrorResponse("Failed to retrieve average grade: " + e.getMessage()));
+        } catch (Exception e) {
+            logger.error("Unexpected error retrieving average grade for studentRollNumber: {}, courseId: {}", studentRollNumber, courseId, e);
+            return ResponseEntity.status(500)
+                    .body(new ErrorResponse("Internal server error: " + e.getMessage()));
+        }
+    }
+
     @Data
     public static class DeleteSubmissionRequest {
         private String assignmentId;

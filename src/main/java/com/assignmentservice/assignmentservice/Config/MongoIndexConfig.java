@@ -5,7 +5,6 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.index.CompoundIndexDefinition;
 import org.springframework.data.mongodb.core.index.IndexOperations;
-
 import jakarta.annotation.PostConstruct;
 import org.bson.Document;
 
@@ -17,12 +16,20 @@ public class MongoIndexConfig {
 
     @PostConstruct
     public void ensureIndexes() {
-        // Create a unique compound index on studentRollNumber and assignmentId for the grading collection
-        IndexOperations indexOps = mongoTemplate.indexOps("grading");
-        CompoundIndexDefinition indexDefinition = new CompoundIndexDefinition(
+        // Existing index for grading collection
+        IndexOperations gradingIndexOps = mongoTemplate.indexOps("grading");
+        CompoundIndexDefinition gradingIndex = new CompoundIndexDefinition(
                 new Document("studentRollNumber", 1).append("assignmentId", 1)
         );
-        indexDefinition.unique();
-        indexOps.ensureIndex(indexDefinition);
+        gradingIndex.unique();
+        gradingIndexOps.ensureIndex(gradingIndex);
+
+        // New index for student_progress collection
+        IndexOperations progressIndexOps = mongoTemplate.indexOps("student_progress");
+        CompoundIndexDefinition progressIndex = new CompoundIndexDefinition(
+                new Document("studentRollNumber", 1).append("courseId", 1)
+        );
+        progressIndex.unique();
+        progressIndexOps.ensureIndex(progressIndex);
     }
 }

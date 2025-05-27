@@ -28,6 +28,9 @@ public class SubmissionService {
     @Autowired
     private GradingService gradingService;
 
+    @Autowired
+    private StudentProgressService studentProgressService;
+
     @Transactional
     public Submission saveSubmission(String assignmentId, String studentName, String studentRollNumber,
             MultipartFile file) throws IOException {
@@ -48,6 +51,10 @@ public class SubmissionService {
         if (gradingService == null) {
             logger.error("GradingService is not injected into SubmissionService");
             throw new IllegalStateException("GradingService is not injected");
+        }
+        if (studentProgressService == null) {
+            logger.error("StudentProgressService is not injected into SubmissionService");
+            throw new IllegalStateException("StudentProgressService is not injected");
         }
 
         // Generate submissionId
@@ -71,7 +78,7 @@ public class SubmissionService {
         submission.setFileNo(fileNo);
         submission.setSubmittedAt(LocalDateTime.now());
 
-        // Save the submission first
+        // Save the submission
         Submission savedSubmission;
         try {
             savedSubmission = submissionRepository.save(submission);
@@ -81,7 +88,7 @@ public class SubmissionService {
             throw new RuntimeException("Failed to save submission: " + e.getMessage(), e);
         }
 
-        // Auto-generate grading after saving submission
+        // Auto-generate grading
         try {
             logger.info("Attempting to auto-generate grading for studentRollNumber: {}, assignmentId: {}", studentRollNumber, assignmentId);
             gradingService.autoGenerateGrading(studentRollNumber, assignmentId);
@@ -91,14 +98,23 @@ public class SubmissionService {
             throw new RuntimeException("Failed to auto-generate grading: " + e.getMessage(), e);
         }
 
+        // Update progress and grade
+        try {
+            logger.info("Updating progress and grade for studentRollNumber: {}, assignmentId: {}", studentRollNumber, assignmentId);
+            studentProgressService.updateProgressAndGrade(studentRollNumber, savedSubmission.getAssignmentId());
+            logger.info("Successfully updated progress and grade for studentRollNumber: {}, assignmentId: {}", studentRollNumber, assignmentId);
+        } catch (Exception e) {
+            logger.error("Failed to update progress and grade for studentRollNumber: {}, assignmentId: {}", studentRollNumber, assignmentId, e);
+            throw new RuntimeException("Failed to update progress and grade: " + e.getMessage(), e);
+        }
+
         return savedSubmission;
     }
 
     @Transactional
     public void deleteSubmissionByAssignmentIdAndStudentRollNumber(String assignmentId, String studentRollNumber) {
         try {
-            logger.info("Deleting submission for studentRollNumber: {}, assignmentId: {}", studentRollNumber,
-                    assignmentId);
+            logger.info("Deleting submission for studentRollNumber: {}, assignmentId: {}", studentRollNumber, assignmentId);
             Submission submission = submissionRepository
                     .findByAssignmentIdAndStudentRollNumber(assignmentId, studentRollNumber)
                     .orElseThrow(() -> new IllegalArgumentException("No submission found for studentRollNumber: "
@@ -108,11 +124,13 @@ public class SubmissionService {
             }
             gradingService.deleteGrading(studentRollNumber, assignmentId);
             submissionRepository.deleteByAssignmentIdAndStudentRollNumber(assignmentId, studentRollNumber);
-            logger.info("Successfully deleted submission for studentRollNumber: {}, assignmentId: {}",
-                    studentRollNumber, assignmentId);
+            logger.info("Successfully deleted submission for studentRollNumber: {}, assignmentId: {}", studentRollNumber, assignmentId);
+
+            // Update progress and grade
+            studentProgressService.updateProgressAndGrade(studentRollNumber, assignmentId);
+            logger.info("Successfully updated progress and grade after deletion for studentRollNumber: {}, assignmentId: {}", studentRollNumber, assignmentId);
         } catch (Exception e) {
-            logger.error("Failed to delete submission for studentRollNumber: {}, assignmentId: {}", studentRollNumber,
-                    assignmentId, e);
+            logger.error("Failed to delete submission for studentRollNumber: {}, assignmentId: {}", studentRollNumber, assignmentId, e);
             throw new RuntimeException("Failed to delete submission: " + e.getMessage(), e);
         }
     }
