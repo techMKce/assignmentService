@@ -29,10 +29,8 @@ public class SubmissionService {
     private GradingService gradingService;
 
     @Transactional
-    public Submission saveSubmission(String userId, String assignmentId, String studentName, String studentRollNumber, MultipartFile file) throws IOException {
-        if (userId == null || userId.isEmpty()) {
-            throw new IllegalArgumentException("User ID cannot be null or empty");
-        }
+    public Submission saveSubmission(String assignmentId, String studentName, String studentRollNumber,
+            MultipartFile file) throws IOException {
         if (assignmentId == null || assignmentId.isEmpty()) {
             throw new IllegalArgumentException("Assignment ID cannot be null or empty");
         }
@@ -67,7 +65,6 @@ public class SubmissionService {
 
         Submission submission = new Submission();
         submission.setId(submissionId);
-        submission.setUserId(userId);
         submission.setStudentName(studentName);
         submission.setStudentRollNumber(studentRollNumber);
         submission.setAssignmentId(assignmentId);
@@ -78,19 +75,19 @@ public class SubmissionService {
         Submission savedSubmission;
         try {
             savedSubmission = submissionRepository.save(submission);
-            logger.info("Successfully saved submission for userId: {}, assignmentId: {}", userId, assignmentId);
+            logger.info("Successfully saved submission for studentRollNumber: {}, assignmentId: {}", studentRollNumber, assignmentId);
         } catch (Exception e) {
-            logger.error("Failed to save submission for userId: {}, assignmentId: {}", userId, assignmentId, e);
+            logger.error("Failed to save submission for studentRollNumber: {}, assignmentId: {}", studentRollNumber, assignmentId, e);
             throw new RuntimeException("Failed to save submission: " + e.getMessage(), e);
         }
 
         // Auto-generate grading after saving submission
         try {
-            logger.info("Attempting to auto-generate grading for userId: {}, assignmentId: {}", userId, assignmentId);
-            gradingService.autoGenerateGrading(userId, assignmentId);
-            logger.info("Successfully auto-generated grading for userId: {}, assignmentId: {}", userId, assignmentId);
+            logger.info("Attempting to auto-generate grading for studentRollNumber: {}, assignmentId: {}", studentRollNumber, assignmentId);
+            gradingService.autoGenerateGrading(studentRollNumber, assignmentId);
+            logger.info("Successfully auto-generated grading for studentRollNumber: {}, assignmentId: {}", studentRollNumber, assignmentId);
         } catch (Exception e) {
-            logger.error("Failed to auto-generate grading for userId: {}, assignmentId: {}", userId, assignmentId, e);
+            logger.error("Failed to auto-generate grading for studentRollNumber: {}, assignmentId: {}", studentRollNumber, assignmentId, e);
             throw new RuntimeException("Failed to auto-generate grading: " + e.getMessage(), e);
         }
 
@@ -98,25 +95,30 @@ public class SubmissionService {
     }
 
     @Transactional
-    public void deleteSubmissionByAssignmentIdAndUserId(String assignmentId, String userId) {
+    public void deleteSubmissionByAssignmentIdAndStudentRollNumber(String assignmentId, String studentRollNumber) {
         try {
-            logger.info("Deleting submission for userId: {}, assignmentId: {}", userId, assignmentId);
-            Submission submission = submissionRepository.findByAssignmentIdAndUserId(assignmentId, userId)
-                    .orElseThrow(() -> new IllegalArgumentException("No submission found for userId: " + userId + ", assignmentId: " + assignmentId));
+            logger.info("Deleting submission for studentRollNumber: {}, assignmentId: {}", studentRollNumber,
+                    assignmentId);
+            Submission submission = submissionRepository
+                    .findByAssignmentIdAndStudentRollNumber(assignmentId, studentRollNumber)
+                    .orElseThrow(() -> new IllegalArgumentException("No submission found for studentRollNumber: "
+                            + studentRollNumber + ", assignmentId: " + assignmentId));
             if (submission.getFileNo() != null) {
                 fileService.deleteFileByFileNo(submission.getFileNo());
             }
-            gradingService.deleteGrading(userId, assignmentId);
-            submissionRepository.deleteByAssignmentIdAndUserId(assignmentId, userId);
-            logger.info("Successfully deleted submission for userId: {}, assignmentId: {}", userId, assignmentId);
+            gradingService.deleteGrading(studentRollNumber, assignmentId);
+            submissionRepository.deleteByAssignmentIdAndStudentRollNumber(assignmentId, studentRollNumber);
+            logger.info("Successfully deleted submission for studentRollNumber: {}, assignmentId: {}",
+                    studentRollNumber, assignmentId);
         } catch (Exception e) {
-            logger.error("Failed to delete submission for userId: {}, assignmentId: {}", userId, assignmentId, e);
+            logger.error("Failed to delete submission for studentRollNumber: {}, assignmentId: {}", studentRollNumber,
+                    assignmentId, e);
             throw new RuntimeException("Failed to delete submission: " + e.getMessage(), e);
         }
     }
 
-    public List<Submission> getAllSubmission() {
-        return submissionRepository.findAll();
+    public Submission getSubmissionById(String submissionId) {
+        return submissionRepository.findById(submissionId).orElse(null);
     }
 
     public List<Submission> getSubmissionsByAssignmentId(String assignmentId) {

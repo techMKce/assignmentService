@@ -31,38 +31,27 @@ public class SubmissionController {
     @Autowired
     private FileService fileService;
 
-    @PostMapping(value = "/submitassignment", consumes = "multipart/form-data")
+    @PostMapping( consumes = "multipart/form-data")
     public ResponseEntity<?> submitAssignment(
-            @RequestParam("userId") String userId,
             @RequestParam("assignmentId") String assignmentId,
             @RequestParam("studentName") String studentName,
             @RequestParam("studentRollNumber") String studentRollNumber,
             @RequestPart("file") MultipartFile file) throws IOException {
         try {
-            Submission submission = submissionService.saveSubmission(userId, assignmentId, studentName, studentRollNumber, file);
+            Submission submission = submissionService.saveSubmission( assignmentId, studentName, studentRollNumber, file);
             Map<String, Object> response = new HashMap<>();
             response.put("message", "Submission created successfully");
             response.put("submissionId", submission.getId());
             return ResponseEntity.ok(response);
         } catch (Exception e) {
-            logger.error("Failed to submit assignment for userId: {}, assignmentId: {}", userId, assignmentId, e);
+            logger.error("Failed to submit assignment for studentRollNumber: {}, assignmentId: {}", studentRollNumber, assignmentId, e);
             return ResponseEntity.badRequest()
                     .body(new ErrorResponse("Failed to submit assignment: " + e.getMessage()));
         }
     }
 
     @GetMapping
-    public ResponseEntity<?> getAllSubmission() {
-        List<Submission> submissions = submissionService.getAllSubmission();
-        Map<String, Object> response = new HashMap<>();
-        response.put("message", "Submissions retrieved successfully");
-        response.put("submissions", submissions);
-        return ResponseEntity.ok(response);
-    }
-
-    @PostMapping("/assignment")
-    public ResponseEntity<?> getSubmissionsByAssignmentId(@RequestBody AssignmentIdRequest request) {
-        String assignmentId = request.getAssignmentId();
+    public ResponseEntity<?> getSubmissionsByAssignmentId(@RequestParam("assignmentId") String assignmentId) {
         if (assignmentId == null || assignmentId.isBlank()) {
             return ResponseEntity.badRequest().body(new ErrorResponse("Assignment ID cannot be null or blank"));
         }
@@ -73,9 +62,8 @@ public class SubmissionController {
         return ResponseEntity.ok(response);
     }
 
-    @PostMapping("/downloadsubmission")
-    public ResponseEntity<?> downloadSubmission(@RequestBody SubmissionIdRequest idRequest) throws IOException {
-        String submissionId = idRequest.getSubmissionId();
+    @GetMapping("/download")
+    public ResponseEntity<?> downloadSubmission(@RequestParam("submissionId") String submissionId) throws IOException {
         if (submissionId == null || submissionId.isBlank()) {
             return ResponseEntity.badRequest().body(new ErrorResponse("Submission ID cannot be null or blank"));
         }
@@ -96,30 +84,31 @@ public class SubmissionController {
                 .body(new InputStreamResource(
                         fileService.getGridFsTemplate().getResource(gridFSFile).getInputStream()));
     }
-    @DeleteMapping("/deletesubmission")
+
+    @DeleteMapping
     public ResponseEntity<?> deleteSubmission(@RequestBody DeleteSubmissionRequest request) {
         logger.info("Received delete submission request: {}", request);
         String assignmentId = request.getAssignmentId();
-        String userId = request.getUserId();
-        if (assignmentId == null || assignmentId.isBlank() || userId == null || userId.isBlank()) {
-            logger.warn("Invalid request: assignmentId or userId is null or blank");
+        String studentRollNumber = request.getStudentRollNumber();
+        if (assignmentId == null || assignmentId.isBlank() || studentRollNumber == null || studentRollNumber.isBlank()) {
+            logger.warn("Invalid request: assignmentId or studentRollNumber is null or blank");
             return ResponseEntity.badRequest()
                     .body(new ErrorResponse("Assignment ID and User ID cannot be null or blank"));
         }
 
         try {
-            submissionService.deleteSubmissionByAssignmentIdAndUserId(assignmentId, userId);
+            submissionService.deleteSubmissionByAssignmentIdAndStudentRollNumber(assignmentId, studentRollNumber);
             Map<String, Object> response = new HashMap<>();
             response.put("message", "Submission deleted successfully");
             response.put("assignmentId", assignmentId);
-            response.put("userId", userId);
+            response.put("studentRollNumber", studentRollNumber);
             return ResponseEntity.ok(response);
         } catch (IllegalArgumentException e) {
-            logger.error("Failed to delete submission for userId: {}, assignmentId: {}, reason: {}", userId, assignmentId, e.getMessage());
+            logger.error("Failed to delete submission for studentRollNumber: {}, assignmentId: {}, reason: {}", studentRollNumber, assignmentId, e.getMessage());
             return ResponseEntity.badRequest()
                     .body(new ErrorResponse("Failed to delete submission: " + e.getMessage()));
         } catch (Exception e) {
-            logger.error("Unexpected error deleting submission for userId: {}, assignmentId: {}", userId, assignmentId, e);
+            logger.error("Unexpected error deleting submission for studentRollNumber: {}, assignmentId: {}", studentRollNumber, assignmentId, e);
             return ResponseEntity.status(500)
                     .body(new ErrorResponse("Internal server error: " + e.getMessage()));
         }
@@ -127,7 +116,7 @@ public class SubmissionController {
     @Data
     public static class DeleteSubmissionRequest {
         private String assignmentId;
-        private String userId;
+        private String studentRollNumber;
     }
 
     @Data

@@ -14,11 +14,11 @@ import java.time.LocalDateTime;
 public class Grading {
     @Id
     private String id;
-    private String userId;
     private String assignmentId;
     private String studentName;
     private String studentRollNumber;
     private String grade;
     private String feedback;
     private LocalDateTime gradedAt;
+    
 }
