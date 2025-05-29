@@ -25,13 +25,13 @@ public class SubmissionService {
     private SubmissionRepository submissionRepository;
 
     @Autowired
+    private TodoRepository todoRepository;
+
+    @Autowired
     private FileService fileService;
 
     @Autowired
     private GradingService gradingService;
-
-    @Autowired
-    private TodoRepository todoRepository;
 
     @Transactional
     public Submission saveSubmission(String assignmentId, String studentName, String studentRollNumber,
@@ -52,6 +52,22 @@ public class SubmissionService {
         if (gradingService == null) {
             logger.error("GradingService is not injected into SubmissionService");
             throw new IllegalStateException("GradingService is not injected");
+        }
+
+        // Delete any existing submission for this student and assignment
+        try {
+            submissionRepository.deleteByAssignmentIdAndStudentRollNumber(assignmentId, studentRollNumber);
+            logger.info("Deleted existing submission for studentRollNumber: {}, assignmentId: {}", studentRollNumber, assignmentId);
+        } catch (Exception e) {
+            logger.warn("No existing submission found or error deleting for studentRollNumber: {}, assignmentId: {}", studentRollNumber, assignmentId, e);
+        }
+
+        // Delete any existing todo for this student and assignment (for resubmission)
+        try {
+            todoRepository.deleteByStudentRollNumberAndAssignmentId(studentRollNumber, assignmentId);
+            logger.info("Deleted existing todo for studentRollNumber: {}, assignmentId: {}", studentRollNumber, assignmentId);
+        } catch (Exception e) {
+            logger.warn("No existing todo found or error deleting for studentRollNumber: {}, assignmentId: {}", studentRollNumber, assignmentId, e);
         }
 
         String submissionId = UUID.randomUUID().toString();
@@ -113,14 +129,23 @@ public class SubmissionService {
             logger.info("Successfully updated submission status to {} for submissionId: {}", status, submissionId);
 
             if (status.equals("Rejected")) {
+                // Create a todo entry with status "Pending"
                 Todo todo = new Todo();
+                todo.setId(UUID.randomUUID().toString());
                 todo.setStudentRollNumber(submission.getStudentRollNumber());
                 todo.setAssignmentId(submission.getAssignmentId());
                 todo.setAssignmentTitle(assignmentTitle);
                 todo.setStatus("Pending");
-
                 todoRepository.save(todo);
-                logger.info("Created todo for rejected submission: studentRollNumber={}, assignmentId={}", 
+                logger.info("Created todo with status 'Pending' for studentRollNumber: {}, assignmentId: {}", 
+                    submission.getStudentRollNumber(), submission.getAssignmentId());
+            } else if (status.equals("Accepted")) {
+                // Delete any existing todo for this student and assignment
+                todoRepository.deleteByStudentRollNumberAndAssignmentId(
+                    submission.getStudentRollNumber(), 
+                    submission.getAssignmentId()
+                );
+                logger.info("Deleted todo for accepted submission: studentRollNumber: {}, assignmentId: {}", 
                     submission.getStudentRollNumber(), submission.getAssignmentId());
             }
 
@@ -144,7 +169,8 @@ public class SubmissionService {
             }
             gradingService.deleteGrading(studentRollNumber, assignmentId);
             submissionRepository.deleteByAssignmentIdAndStudentRollNumber(assignmentId, studentRollNumber);
-            logger.info("Successfully deleted submission for studentRollNumber: {}, assignmentId: {}", studentRollNumber, assignmentId);
+            todoRepository.deleteByStudentRollNumberAndAssignmentId(studentRollNumber, assignmentId);
+            logger.info("Successfully deleted submission and todo for studentRollNumber: {}, assignmentId: {}", studentRollNumber, assignmentId);
         } catch (Exception e) {
             logger.error("Failed to delete submission for studentRollNumber: {}, assignmentId: {}", studentRollNumber, assignmentId, e);
             throw new RuntimeException("Failed to delete submission: " + e.getMessage(), e);
