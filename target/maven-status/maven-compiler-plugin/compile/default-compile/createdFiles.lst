@@ -13,6 +13,7 @@ com\assignmentservice\assignmentservice\Config\GridFsConfig.class
 com\assignmentservice\assignmentservice\Model\Assignment.class
 com\assignmentservice\assignmentservice\Controller\SubmissionController.class
 com\assignmentservice\assignmentservice\Config\MongoIndexConfig.class
+com\assignmentservice\assignmentservice\Controller\SubmissionController$UpdateSubmissionStatusRequest.class
 com\assignmentservice\assignmentservice\Controller\SubmissionController$ErrorResponse.class
 com\assignmentservice\assignmentservice\Controller\SubmissionController$SubmissionIdRequest.class
 com\assignmentservice\assignmentservice\Repository\AssignmentRepository.class
@@ -23,5 +24,7 @@ com\assignmentservice\assignmentservice\Service\AssignmentService.class
 com\assignmentservice\assignmentservice\Repository\GradingRepository.class
 com\assignmentservice\assignmentservice\Controller\GradingController$SubmissionGradingResponse.class
 com\assignmentservice\assignmentservice\Model\Grading.class
+com\assignmentservice\assignmentservice\Model\Todo.class
 com\assignmentservice\assignmentservice\Controller\AssignmentController.class
 com\assignmentservice\assignmentservice\Controller\GradingController$AssignmentIdRequest.class
+com\assignmentservice\assignmentservice\Repository\TodoRepository.class
