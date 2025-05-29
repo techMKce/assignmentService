@@ -38,76 +38,72 @@ public class SubmissionController {
     @Autowired
     private com.assignmentservice.assignmentservice.Repository.GradingRepository gradingRepository;
 
+    private static final Map<String, Double> GRADE_MAP = Map.of(
+            "O", 100.0,
+            "A+", 90.0,
+            "A", 80.0,
+            "B+", 70.0,
+            "B", 60.0,
+            "C+", 50.0,
+            "C", 40.0
+    );
+
     @PostMapping(consumes = "multipart/form-data")
     public ResponseEntity<?> submitAssignment(
             @RequestParam("assignmentId") String assignmentId,
             @RequestParam("studentName") String studentName,
             @RequestParam("studentRollNumber") String studentRollNumber,
+            @RequestParam("studentDepartment") String studentDepartment,
+            @RequestParam("studentSemester") String studentSemester,
             @RequestPart("file") MultipartFile file) throws IOException {
-        try {
-            Submission submission = submissionService.saveSubmission(assignmentId, studentName, studentRollNumber, file);
-            Map<String, Object> response = new HashMap<>();
-            response.put("message", "Submission created successfully");
-            response.put("submissionId", submission.getId());
-            return ResponseEntity.ok(response);
-        } catch (Exception e) {
-            logger.error("Failed to submit assignment for studentRollNumber: {}, assignmentId: {}", studentRollNumber, assignmentId, e);
-            return ResponseEntity.badRequest()
-                    .body(new ErrorResponse("Failed to submit assignment: " + e.getMessage()));
-        }
+        Submission submission = submissionService.saveSubmission(assignmentId, studentName, studentRollNumber, studentDepartment, studentSemester, file);
+        return ResponseEntity.ok(Map.of(
+                "message", "Submission created successfully",
+                "submissionId", submission.getId()
+        ));
     }
 
     @PostMapping("/status")
     public ResponseEntity<?> updateSubmissionStatus(@RequestBody UpdateSubmissionStatusRequest request) {
-        try {
-            Assignment assignment = assignmentService.getAssignmentById(request.getAssignmentId())
-                    .orElseThrow(() -> new IllegalArgumentException("Assignment not found for ID: " + request.getAssignmentId()));
-            Submission submission = submissionService.updateSubmissionStatus(
-                request.getSubmissionId(), 
-                request.getStatus(),
+        Assignment assignment = assignmentService.getAssignmentById(
+                Optional.ofNullable(request.getAssignmentId())
+                        .filter(id -> !id.isBlank())
+                        .orElseThrow(() -> new IllegalArgumentException("Assignment ID cannot be null or blank"))
+        ).orElseThrow(() -> new IllegalArgumentException("Assignment not found for ID: " + request.getAssignmentId()));
+        Submission submission = submissionService.updateSubmissionStatus(
+                Optional.ofNullable(request.getSubmissionId())
+                        .filter(id -> !id.isBlank())
+                        .orElseThrow(() -> new IllegalArgumentException("Submission ID cannot be null or blank")),
+                Optional.ofNullable(request.getStatus())
+                        .filter(status -> List.of("Accepted", "Rejected").contains(status))
+                        .orElseThrow(() -> new IllegalArgumentException("Status must be either 'Accepted' or 'Rejected'")),
                 assignment.getTitle()
-            );
-
-            Map<String, Object> response = new HashMap<>();
-            response.put("message", "Submission status updated to " + request.getStatus());
-            response.put("submission", submission);
-            return ResponseEntity.ok(response);
-        } catch (IllegalArgumentException e) {
-            logger.error("Failed to update submission status: {}", e.getMessage());
-            return ResponseEntity.badRequest().body(new ErrorResponse(e.getMessage()));
-        } catch (Exception e) {
-            logger.error("Unexpected error updating submission status: {}", e.getMessage(), e);
-            return ResponseEntity.status(500).body(new ErrorResponse("Internal server error: " + e.getMessage()));
-        }
+        );
+        return ResponseEntity.ok(Map.of(
+                "message", "Submission status updated to " + request.getStatus(),
+                "submission", submission
+        ));
     }
 
     @GetMapping
     public ResponseEntity<?> getSubmissionsByAssignmentId(@RequestParam("assignmentId") String assignmentId) {
-        if (assignmentId == null || assignmentId.isBlank()) {
-            return ResponseEntity.badRequest().body(new ErrorResponse("Assignment ID cannot be null or blank"));
-        }
-        List<Submission> submissions = submissionService.getSubmissionsByAssignmentId(assignmentId);
-        Map<String, Object> response = new HashMap<>();
-        response.put("message", "Submissions retrieved successfully");
-        response.put("submissions", submissions);
-        return ResponseEntity.ok(response);
+        List<Submission> submissions = submissionService.getSubmissionsByAssignmentId(
+                Optional.ofNullable(assignmentId)
+                        .filter(id -> !id.isBlank())
+                        .orElseThrow(() -> new IllegalArgumentException("Assignment ID cannot be null or blank"))
+        );
+        return ResponseEntity.ok(Map.of(
+                "message", "Submissions retrieved successfully",
+                "submissions", submissions
+        ));
     }
 
     @GetMapping("/download")
     public ResponseEntity<?> downloadSubmission(@RequestParam("submissionId") String submissionId) throws IOException {
-        if (submissionId == null || submissionId.isBlank()) {
-            return ResponseEntity.badRequest().body(new ErrorResponse("Submission ID cannot be null or blank"));
-        }
-
-        GridFSFile gridFSFile = fileService.getFileBySubmissionId(submissionId);
-        if (gridFSFile == null) {
-            return ResponseEntity.status(404)
-                    .body(new ErrorResponse("File not found for submission ID: " + submissionId));
-        }
-
-        Map<String, Object> response = new HashMap<>();
-        response.put("message", "File retrieved successfully");
-        response.put("filename", gridFSFile.getFilename());
+        GridFSFile gridFSFile = Optional.ofNullable(submissionId)
+                .filter(id -> !id.isBlank())
+                .map(fileService::getFileBySubmissionId)
+                .orElseThrow(() -> new IllegalArgumentException("File not found for submission ID: " + submissionId));
 
         return ResponseEntity.ok()
                 .contentType(MediaType.parseMediaType(gridFSFile.getMetadata().getString("_contentType")))
@@ -119,174 +115,126 @@ public class SubmissionController {
     @DeleteMapping
     public ResponseEntity<?> deleteSubmission(@RequestBody DeleteSubmissionRequest request) {
         logger.info("Received delete submission request: {}", request);
-        String assignmentId = request.getAssignmentId();
-        String studentRollNumber = request.getStudentRollNumber();
-        if (assignmentId == null || assignmentId.isBlank() || studentRollNumber == null || studentRollNumber.isBlank()) {
-            logger.warn("Invalid request: assignmentId or studentRollNumber is null or blank");
-            return ResponseEntity.badRequest()
-                    .body(new ErrorResponse("Assignment ID and User ID cannot be null or blank"));
-        }
-
-        try {
-            submissionService.deleteSubmissionByAssignmentIdAndStudentRollNumber(assignmentId, studentRollNumber);
-            Map<String, Object> response = new HashMap<>();
-            response.put("message", "Submission deleted successfully");
-            response.put("assignmentId", assignmentId);
-            response.put("studentRollNumber", studentRollNumber);
-            return ResponseEntity.ok(response);
-        } catch (IllegalArgumentException e) {
-            logger.error("Failed to delete submission for studentRollNumber: {}, assignmentId: {}, reason: {}", studentRollNumber, assignmentId, e.getMessage());
-            return ResponseEntity.badRequest()
-                    .body(new ErrorResponse("Failed to delete submission: " + e.getMessage()));
-        } catch (Exception e) {
-            logger.error("Unexpected error deleting submission for studentRollNumber: {}, assignmentId: {}", studentRollNumber, assignmentId, e);
-            return ResponseEntity.status(500)
-                    .body(new ErrorResponse("Internal server error: " + e.getMessage()));
-        }
+        String assignmentId = Optional.ofNullable(request.getAssignmentId())
+                .filter(id -> !id.isBlank())
+                .orElseThrow(() -> new IllegalArgumentException("Assignment ID cannot be null or blank"));
+        String studentRollNumber = Optional.ofNullable(request.getStudentRollNumber())
+                .filter(id -> !id.isBlank())
+                .orElseThrow(() -> new IllegalArgumentException("Student Roll Number cannot be null or blank"));
+        submissionService.deleteSubmissionByAssignmentIdAndStudentRollNumber(assignmentId, studentRollNumber);
+        return ResponseEntity.ok(Map.of(
+                "message", "Submission deleted successfully",
+                "assignmentId", assignmentId,
+                "studentRollNumber", studentRollNumber
+        ));
     }
 
     @GetMapping("/id")
     public ResponseEntity<?> getSubmissionById(@RequestParam("submissionId") String submissionId) {
-        if (submissionId == null || submissionId.isBlank()) {
-            return ResponseEntity.badRequest().body(new ErrorResponse("Submission ID cannot be null or blank"));
-        }
-
-        try {
-            Submission submission = submissionService.getSubmissionById(submissionId);
-            if (submission == null) {
-                return ResponseEntity.status(404).body(new ErrorResponse("Submission not found"));
-            }
-
-            Map<String, Object> response = new HashMap<>();
-            response.put("message", "Submission retrieved successfully");
-            response.put("submission", submission);
-            return ResponseEntity.ok(response);
-        } catch (Exception e) {
-            return ResponseEntity.status(500).body(new ErrorResponse("Internal server error: " + e.getMessage()));
-        }
+        Submission submission = Optional.ofNullable(submissionId)
+                .filter(id -> !id.isBlank())
+                .map(submissionService::getSubmissionById)
+                .orElseThrow(() -> new IllegalArgumentException("Submission not found for ID: " + submissionId));
+        return ResponseEntity.ok(Map.of(
+                "message", "Submission retrieved successfully",
+                "submission", submission
+        ));
     }
 
     @GetMapping("/progress")
     public ResponseEntity<?> getStudentProgress(@RequestParam("studentRollNumber") String studentRollNumber,
                                                @RequestParam("courseId") String courseId) {
-        if (studentRollNumber == null || studentRollNumber.isBlank() || courseId == null || courseId.isBlank()) {
-            logger.warn("Invalid request: studentRollNumber or courseId is null or blank");
-            return ResponseEntity.badRequest()
-                    .body(new ErrorResponse("Student Roll Number and Course ID cannot be null or blank"));
-        }
+        String validRollNumber = Optional.ofNullable(studentRollNumber)
+                .filter(id -> !id.isBlank())
+                .orElseThrow(() -> new IllegalArgumentException("Student Roll Number cannot be null or blank"));
+        String validCourseId = Optional.ofNullable(courseId)
+                .filter(id -> !id.isBlank())
+                .orElseThrow(() -> new IllegalArgumentException("Course ID cannot be null or blank"));
 
-        try {
-            List<Assignment> assignments = assignmentService.getAssignmentsByCourseId(courseId);
-            long totalAssignments = assignments.size();
-            if (totalAssignments == 0) {
-                logger.warn("No assignments found for courseId: {}", courseId);
-                return ResponseEntity.ok()
-                        .body(Map.of(
-                            "message", "No assignments found for the course",
-                            "studentRollNumber", studentRollNumber,
-                            "courseId", courseId,
-                            "progressPercentage", 0.0
-                        ));
-            }
+        List<Assignment> assignments = assignmentService.getAssignmentsByCourseId(validCourseId);
+        long totalAssignments = assignments.size();
+        double progressPercentage = assignments.isEmpty() ? 0.0 :
+                submissionService.countByStudentRollNumberAndAssignmentIds(
+                        validRollNumber,
+                        assignments.stream().map(Assignment::getAssignmentId).toList()
+                ) * 100.0 / totalAssignments;
+        progressPercentage = Math.round(progressPercentage * 100.0) / 100.0;
 
-            List<String> assignmentIds = assignments.stream()
-                    .map(Assignment::getAssignmentId)
-                    .toList();
+        logger.info("Calculated progress {}% for studentRollNumber: {}, courseId: {}",
+                progressPercentage, validRollNumber, validCourseId);
+        return ResponseEntity.ok(Map.of(
+                "message", assignments.isEmpty() ? "No assignments found for the course" : "Progress calculated successfully",
+                "studentRollNumber", validRollNumber,
+                "courseId", validCourseId,
+                "progressPercentage", progressPercentage
+        ));
+    }
 
-            long submissionCount = submissionService.countByStudentRollNumberAndAssignmentIds(studentRollNumber, assignmentIds);
-            double progressPercentage = (double) submissionCount / totalAssignments * 100;
-            progressPercentage = Math.round(progressPercentage * 100.0) / 100.0;
+    @GetMapping("/courses/{courseId}/student-progress")
+    public ResponseEntity<?> getAllStudentProgress(@PathVariable String courseId) {
+        String validCourseId = Optional.ofNullable(courseId)
+                .filter(id -> !id.isBlank())
+                .orElseThrow(() -> new IllegalArgumentException("Course ID cannot be null or blank"));
 
-            Map<String, Object> response = new HashMap<>();
-            response.put("message", "Progress calculated successfully");
-            response.put("studentRollNumber", studentRollNumber);
-            response.put("courseId", courseId);
-            response.put("progressPercentage", progressPercentage);
-            logger.info("Calculated progress {}% for studentRollNumber: {}, courseId: {}", 
-                progressPercentage, studentRollNumber, courseId);
-            return ResponseEntity.ok(response);
-        } catch (Exception e) {
-            logger.error("Unexpected error calculating progress for studentRollNumber: {}, courseId: {}", studentRollNumber, courseId, e);
-            return ResponseEntity.status(500)
-                    .body(new ErrorResponse("Internal server error: " + e.getMessage()));
-        }
+        List<SubmissionService.StudentProgress> progressList = submissionService.getStudentProgressForCourse(validCourseId);
+        logger.info("Retrieved progress for {} students for courseId: {}", progressList.size(), validCourseId);
+        return ResponseEntity.ok(Map.of(
+                "message", "Student progress retrieved successfully",
+                "courseId", validCourseId,
+                "students", progressList
+        ));
     }
 
     @GetMapping("/grade/average")
     public ResponseEntity<?> getStudentAverageGrade(@RequestParam("studentRollNumber") String studentRollNumber,
                                                    @RequestParam("courseId") String courseId) {
-        if (studentRollNumber == null || studentRollNumber.isBlank() || courseId == null || courseId.isBlank()) {
-            logger.warn("Invalid request: studentRollNumber or courseId is null or blank");
-            return ResponseEntity.badRequest()
-                    .body(new ErrorResponse("Student Roll Number and Course ID cannot be null or blank"));
-        }
+        String validRollNumber = Optional.ofNullable(studentRollNumber)
+                .filter(id -> !id.isBlank())
+                .orElseThrow(() -> new IllegalArgumentException("Student Roll Number cannot be null or blank"));
+        String validCourseId = Optional.ofNullable(courseId)
+                .filter(id -> !id.isBlank())
+                .orElseThrow(() -> new IllegalArgumentException("Course ID cannot be null or blank"));
 
-        try {
-            List<Assignment> assignments = assignmentService.getAssignmentsByCourseId(courseId);
-            if (assignments.isEmpty()) {
-                logger.warn("No assignments found for courseId: {}", courseId);
-                return ResponseEntity.ok()
-                        .body(Map.of(
-                            "message", "No assignments found for the course",
-                            "studentRollNumber", studentRollNumber,
-                            "courseId", courseId,
-                            "averageGrade", null
-                        ));
-            }
+        List<Assignment> assignments = assignmentService.getAssignmentsByCourseId(validCourseId);
+        List<String> assignmentIds = assignments.stream()
+                .map(Assignment::getAssignmentId)
+                .toList();
 
-            List<String> assignmentIds = assignments.stream()
-                    .map(Assignment::getAssignmentId)
-                    .toList();
+        double totalGrade = assignmentIds.stream()
+                .map(id -> gradingRepository.findByStudentRollNumberAndAssignmentId(validRollNumber, id))
+                .filter(Optional::isPresent)
+                .map(Optional::get)
+                .map(grading -> grading.getGrade())
+                .filter(grade -> grade != null && !grade.isBlank())
+                .mapToDouble(this::convertLetterGradeToNumber)
+                .sum();
 
-            double totalGrade = 0.0;
-            int gradedAssignments = 0;
-            for (String assignmentId : assignmentIds) {
-                Optional<com.assignmentservice.assignmentservice.Model.Grading> gradingOpt = gradingRepository.findByStudentRollNumberAndAssignmentId(studentRollNumber, assignmentId);
-                if (gradingOpt.isPresent()) {
-                    String grade = gradingOpt.get().getGrade();
-                    if (grade != null && !grade.isBlank()) {
-                        totalGrade += convertLetterGradeToNumber(grade);
-                        gradedAssignments++;
-                    }
-                }
-            }
+        long gradedAssignments = assignmentIds.stream()
+                .map(id -> gradingRepository.findByStudentRollNumberAndAssignmentId(validRollNumber, id))
+                .filter(Optional::isPresent)
+                .map(Optional::get)
+                .map(grading -> grading.getGrade())
+                .filter(grade -> grade != null && !grade.isBlank())
+                .count();
 
-            Double averageGrade = gradedAssignments > 0 ? Math.round((totalGrade / gradedAssignments) * 100.0) / 100.0 : null;
+        Double averageGrade = gradedAssignments > 0 ? Math.round((totalGrade / gradedAssignments) * 100.0) / 100.0 : null;
 
-            Map<String, Object> response = new HashMap<>();
-            response.put("message", "Average grade calculated successfully");
-            response.put("studentRollNumber", studentRollNumber);
-            response.put("courseId", courseId);
-            response.put("averageGrade", averageGrade != null ? averageGrade : "Not graded");
-            logger.info("Calculated average grade {} for studentRollNumber: {}, courseId: {}", 
-                averageGrade != null ? averageGrade : "Not graded", studentRollNumber, courseId);
-            return ResponseEntity.ok(response);
-        } catch (Exception e) {
-            logger.error("Unexpected error calculating average grade for studentRollNumber: {}, courseId: {}", studentRollNumber, courseId, e);
-            return ResponseEntity.status(500)
-                    .body(new ErrorResponse("Internal server error: " + e.getMessage()));
-        }
+        logger.info("Calculated average grade {} for studentRollNumber: {}, courseId: {}",
+                averageGrade != null ? averageGrade : "Not graded", validRollNumber, validCourseId);
+        return ResponseEntity.ok(Map.of(
+                "message", assignments.isEmpty() ? "No assignments found for the course" : "Average grade calculated successfully",
+                "studentRollNumber", validRollNumber,
+                "courseId", validCourseId,
+                "averageGrade", averageGrade != null ? averageGrade : "Not graded"
+        ));
     }
 
     private double convertLetterGradeToNumber(String grade) {
-        if (grade == null || grade.isBlank()) {
-            logger.error("Grade is null or blank");
-            throw new IllegalArgumentException("Grade cannot be null or blank");
-        }
-        switch (grade.toUpperCase()) {
-            case "A+": return 95.0;
-            case "A": return 90.0;
-            case "B+": return 85.0;
-            case "B": return 80.0;
-            case "C+": return 75.0;
-            case "C": return 70.0;
-            case "D+": return 65.0;
-            case "D": return 60.0;
-            case "F": return 0.0;
-            default:
-                logger.error("Invalid grade format: {}", grade);
-                throw new IllegalArgumentException("Invalid grade format: " + grade);
-        }
+        return Optional.ofNullable(grade)
+                .filter(g -> !g.isBlank())
+                .map(String::toUpperCase)
+                .map(GRADE_MAP::get)
+                .orElseThrow(() -> new IllegalArgumentException("Invalid grade: " + grade));
     }
 
     @Data
@@ -300,11 +248,6 @@ public class SubmissionController {
     public static class DeleteSubmissionRequest {
         private String assignmentId;
         private String studentRollNumber;
-    }
-
-    @Data
-    public static class SubmissionIdRequest {
-        private String submissionId;
     }
 
     @Data

@@ -20,6 +20,12 @@ public interface SubmissionRepository extends MongoRepository<Submission, String
     @Query(value = "{ 'assignmentId': ?0, 'studentRollNumber': ?1 }", delete = true)
     void deleteByAssignmentIdAndStudentRollNumber(String assignmentId, String studentRollNumber);
 
-    @Query(value = "{ 'studentRollNumber': ?0, 'assignmentId': { $in: ?1 } }", count = true)
-    long countByStudentRollNumberAndAssignmentIdIn(String studentRollNumber, List<String> assignmentIds);
+    @Query(value = "{ 'studentRollNumber': ?0, 'assignmentId': { $in: ?1 }, 'status': 'Accepted' }", count = true)
+    long countByStudentRollNumberAndAssignmentIdInAndStatusAccepted(String studentRollNumber, List<String> assignmentIds);
+
+    @Query(value = "{'assignmentId': {$in: ?0}}", fields = "{'studentRollNumber': 1}")
+    List<Submission> findDistinctStudentRollNumbersByAssignmentIds(List<String> assignmentIds);
+
+    @Query("{ 'studentRollNumber': ?0, 'assignmentId': { $in: ?1 } }")
+    List<Submission> findByStudentRollNumberAndAssignmentIdIn(String studentRollNumber, List<String> assignmentIds);
 }

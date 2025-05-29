@@ -27,6 +27,12 @@ public class Submission {
     @NotBlank(message = "Student roll number is required")
     private String studentRollNumber;
 
+    @NotBlank(message ="StudentDepartment is required")
+    private String studentDepartment;
+
+    @NotBlank(message = "studentSemester is required")
+    private String studentSemester;
+
     @NotNull(message = "Submission time cannot be null")
     private LocalDateTime submittedAt = LocalDateTime.now();
 
