@@ -32,4 +32,7 @@ public class Submission {
 
     @NotBlank(message = "File number cannot be empty")
     private String fileNo;
+
+    @NotBlank(message = "Status cannot be empty")
+    private String status ="Accepted";
 }

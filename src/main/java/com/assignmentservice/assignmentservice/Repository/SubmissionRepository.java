@@ -21,5 +21,5 @@ public interface SubmissionRepository extends MongoRepository<Submission, String
     void deleteByAssignmentIdAndStudentRollNumber(String assignmentId, String studentRollNumber);
 
     @Query(value = "{ 'studentRollNumber': ?0, 'assignmentId': { $in: ?1 } }", count = true)
-    long countByStudentRollNumberAndCourseId(String studentRollNumber, List<String> assignmentIds);
+    long countByStudentRollNumberAndAssignmentIdIn(String studentRollNumber, List<String> assignmentIds);
 }

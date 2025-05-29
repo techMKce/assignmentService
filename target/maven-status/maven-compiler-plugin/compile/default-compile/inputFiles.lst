@@ -7,14 +7,13 @@ L:\assignmentService\src\main\java\com\assignmentservice\assignmentservice\Contr
 L:\assignmentService\src\main\java\com\assignmentservice\assignmentservice\Controller\SubmissionController.java
 L:\assignmentService\src\main\java\com\assignmentservice\assignmentservice\Model\Assignment.java
 L:\assignmentService\src\main\java\com\assignmentservice\assignmentservice\Model\Grading.java
-L:\assignmentService\src\main\java\com\assignmentservice\assignmentservice\Model\StudentProgress.java
 L:\assignmentService\src\main\java\com\assignmentservice\assignmentservice\Model\Submission.java
+L:\assignmentService\src\main\java\com\assignmentservice\assignmentservice\Model\Todo.java
 L:\assignmentService\src\main\java\com\assignmentservice\assignmentservice\Repository\AssignmentRepository.java
 L:\assignmentService\src\main\java\com\assignmentservice\assignmentservice\Repository\GradingRepository.java
-L:\assignmentService\src\main\java\com\assignmentservice\assignmentservice\Repository\StudentProgressRepository.java
 L:\assignmentService\src\main\java\com\assignmentservice\assignmentservice\Repository\SubmissionRepository.java
+L:\assignmentService\src\main\java\com\assignmentservice\assignmentservice\Repository\TodoRepository.java
 L:\assignmentService\src\main\java\com\assignmentservice\assignmentservice\Service\AssignmentService.java
 L:\assignmentService\src\main\java\com\assignmentservice\assignmentservice\Service\FileService.java
 L:\assignmentService\src\main\java\com\assignmentservice\assignmentservice\Service\GradingService.java
-L:\assignmentService\src\main\java\com\assignmentservice\assignmentservice\Service\StudentProgressService.java
 L:\assignmentService\src\main\java\com\assignmentservice\assignmentservice\Service\SubmissionService.java

@@ -24,12 +24,5 @@ public class MongoIndexConfig {
         gradingIndex.unique();
         gradingIndexOps.ensureIndex(gradingIndex);
 
-        // New index for student_progress collection
-        IndexOperations progressIndexOps = mongoTemplate.indexOps("student_progress");
-        CompoundIndexDefinition progressIndex = new CompoundIndexDefinition(
-                new Document("studentRollNumber", 1).append("courseId", 1)
-        );
-        progressIndex.unique();
-        progressIndexOps.ensureIndex(progressIndex);
     }
 }

@@ -28,9 +28,6 @@ public class GradingService {
     @Autowired
     private SubmissionRepository submissionRepository;
 
-    @Autowired
-    private StudentProgressService studentProgressService;
-
     @Transactional
     public Grading autoGenerateGrading(String studentRollNumber, String assignmentId) {
         if (studentRollNumber == null || assignmentId == null) {
@@ -110,9 +107,6 @@ public class GradingService {
         try {
             Grading savedGrading = gradingRepository.save(grading);
             logger.info("Successfully saved grading for studentRollNumber: {}, assignmentId: {}", studentRollNumber, assignmentId);
-            // Update progress and grade
-            studentProgressService.updateProgressAndGrade(studentRollNumber, assignmentId);
-            logger.info("Successfully updated progress and grade for studentRollNumber: {}, assignmentId: {}", studentRollNumber, assignmentId);
             return savedGrading;
         } catch (Exception e) {
             logger.error("Failed to save grading for studentRollNumber: {}, assignmentId: {}", studentRollNumber, assignmentId, e);
@@ -143,9 +137,6 @@ public class GradingService {
         try {
             Grading savedGrading = gradingRepository.save(grading);
             logger.info("Successfully deleted (reset) grading for studentRollNumber: {}, assignmentId: {}", studentRollNumber, assignmentId);
-            // Update progress and grade
-            studentProgressService.updateProgressAndGrade(studentRollNumber, assignmentId);
-            logger.info("Successfully updated progress and grade for studentRollNumber: {}, assignmentId: {}", studentRollNumber, assignmentId);
             return savedGrading;
         } catch (Exception e) {
             logger.error("Failed to delete (reset) grading for studentRollNumber: {}, assignmentId: {}", studentRollNumber, assignmentId, e);

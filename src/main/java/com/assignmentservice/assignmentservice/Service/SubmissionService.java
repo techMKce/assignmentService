@@ -1,7 +1,9 @@
 package com.assignmentservice.assignmentservice.Service;
 
 import com.assignmentservice.assignmentservice.Model.Submission;
+import com.assignmentservice.assignmentservice.Model.Todo;
 import com.assignmentservice.assignmentservice.Repository.SubmissionRepository;
+import com.assignmentservice.assignmentservice.Repository.TodoRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -29,7 +31,7 @@ public class SubmissionService {
     private GradingService gradingService;
 
     @Autowired
-    private StudentProgressService studentProgressService;
+    private TodoRepository todoRepository;
 
     @Transactional
     public Submission saveSubmission(String assignmentId, String studentName, String studentRollNumber,
@@ -47,20 +49,12 @@ public class SubmissionService {
             throw new IllegalArgumentException("File cannot be null or empty");
         }
 
-        // Debug: Verify gradingService injection
         if (gradingService == null) {
             logger.error("GradingService is not injected into SubmissionService");
             throw new IllegalStateException("GradingService is not injected");
         }
-        if (studentProgressService == null) {
-            logger.error("StudentProgressService is not injected into SubmissionService");
-            throw new IllegalStateException("StudentProgressService is not injected");
-        }
 
-        // Generate submissionId
         String submissionId = UUID.randomUUID().toString();
-
-        // Upload the file to GridFS
         String fileName = file.getOriginalFilename();
         String fileNo;
         try {
@@ -77,8 +71,8 @@ public class SubmissionService {
         submission.setAssignmentId(assignmentId);
         submission.setFileNo(fileNo);
         submission.setSubmittedAt(LocalDateTime.now());
+        submission.setStatus("Accepted");
 
-        // Save the submission
         Submission savedSubmission;
         try {
             savedSubmission = submissionRepository.save(submission);
@@ -88,7 +82,6 @@ public class SubmissionService {
             throw new RuntimeException("Failed to save submission: " + e.getMessage(), e);
         }
 
-        // Auto-generate grading
         try {
             logger.info("Attempting to auto-generate grading for studentRollNumber: {}, assignmentId: {}", studentRollNumber, assignmentId);
             gradingService.autoGenerateGrading(studentRollNumber, assignmentId);
@@ -98,17 +91,44 @@ public class SubmissionService {
             throw new RuntimeException("Failed to auto-generate grading: " + e.getMessage(), e);
         }
 
-        // Update progress and grade
-        try {
-            logger.info("Updating progress and grade for studentRollNumber: {}, assignmentId: {}", studentRollNumber, assignmentId);
-            studentProgressService.updateProgressAndGrade(studentRollNumber, savedSubmission.getAssignmentId());
-            logger.info("Successfully updated progress and grade for studentRollNumber: {}, assignmentId: {}", studentRollNumber, assignmentId);
-        } catch (Exception e) {
-            logger.error("Failed to update progress and grade for studentRollNumber: {}, assignmentId: {}", studentRollNumber, assignmentId, e);
-            throw new RuntimeException("Failed to update progress and grade: " + e.getMessage(), e);
+        return savedSubmission;
+    }
+
+    @Transactional
+    public Submission updateSubmissionStatus(String submissionId, String status, String assignmentTitle) {
+        if (submissionId == null || submissionId.isEmpty()) {
+            throw new IllegalArgumentException("Submission ID cannot be null or empty");
+        }
+        if (status == null || (!status.equals("Accepted") && !status.equals("Rejected"))) {
+            throw new IllegalArgumentException("Status must be either 'Accepted' or 'Rejected'");
         }
 
-        return savedSubmission;
+        Submission submission = submissionRepository.findById(submissionId)
+                .orElseThrow(() -> new IllegalArgumentException("Submission not found for ID: " + submissionId));
+
+        submission.setStatus(status);
+
+        try {
+            Submission updatedSubmission = submissionRepository.save(submission);
+            logger.info("Successfully updated submission status to {} for submissionId: {}", status, submissionId);
+
+            if (status.equals("Rejected")) {
+                Todo todo = new Todo();
+                todo.setStudentRollNumber(submission.getStudentRollNumber());
+                todo.setAssignmentId(submission.getAssignmentId());
+                todo.setAssignmentTitle(assignmentTitle);
+                todo.setStatus("Pending");
+
+                todoRepository.save(todo);
+                logger.info("Created todo for rejected submission: studentRollNumber={}, assignmentId={}", 
+                    submission.getStudentRollNumber(), submission.getAssignmentId());
+            }
+
+            return updatedSubmission;
+        } catch (Exception e) {
+            logger.error("Failed to update submission status for submissionId: {}", submissionId, e);
+            throw new RuntimeException("Failed to update submission status: " + e.getMessage(), e);
+        }
     }
 
     @Transactional
@@ -125,10 +145,6 @@ public class SubmissionService {
             gradingService.deleteGrading(studentRollNumber, assignmentId);
             submissionRepository.deleteByAssignmentIdAndStudentRollNumber(assignmentId, studentRollNumber);
             logger.info("Successfully deleted submission for studentRollNumber: {}, assignmentId: {}", studentRollNumber, assignmentId);
-
-            // Update progress and grade
-            studentProgressService.updateProgressAndGrade(studentRollNumber, assignmentId);
-            logger.info("Successfully updated progress and grade after deletion for studentRollNumber: {}, assignmentId: {}", studentRollNumber, assignmentId);
         } catch (Exception e) {
             logger.error("Failed to delete submission for studentRollNumber: {}, assignmentId: {}", studentRollNumber, assignmentId, e);
             throw new RuntimeException("Failed to delete submission: " + e.getMessage(), e);
@@ -141,5 +157,13 @@ public class SubmissionService {
 
     public List<Submission> getSubmissionsByAssignmentId(String assignmentId) {
         return submissionRepository.findByAssignmentId(assignmentId);
+    }
+
+    public long countByStudentRollNumberAndAssignmentIds(String studentRollNumber, List<String> assignmentIds) {
+        logger.info("Counting submissions for studentRollNumber: {}, assignmentIds: {}", 
+            studentRollNumber, assignmentIds);
+        long count = submissionRepository.countByStudentRollNumberAndAssignmentIdIn(studentRollNumber, assignmentIds);
+        logger.info("Found {} submissions", count);
+        return count;
     }
 }

@@ -6,12 +6,10 @@ com\assignmentservice\assignmentservice\Controller\GradingController.class
 com\assignmentservice\assignmentservice\Config\CorsConfig.class
 com\assignmentservice\assignmentservice\Controller\CourseIdRequest.class
 com\assignmentservice\assignmentservice\Controller\GradingController$GradeAssignmentRequest.class
-com\assignmentservice\assignmentservice\Repository\StudentProgressRepository.class
 com\assignmentservice\assignmentservice\Service\SubmissionService.class
 com\assignmentservice\assignmentservice\Repository\SubmissionRepository.class
 com\assignmentservice\assignmentservice\Service\GradingService.class
 com\assignmentservice\assignmentservice\Config\GridFsConfig.class
-com\assignmentservice\assignmentservice\Model\StudentProgress.class
 com\assignmentservice\assignmentservice\Model\Assignment.class
 com\assignmentservice\assignmentservice\Controller\SubmissionController.class
 com\assignmentservice\assignmentservice\Config\MongoIndexConfig.class
@@ -20,11 +18,9 @@ com\assignmentservice\assignmentservice\Controller\SubmissionController$Submissi
 com\assignmentservice\assignmentservice\Repository\AssignmentRepository.class
 com\assignmentservice\assignmentservice\AssignmentServiceApplication.class
 com\assignmentservice\assignmentservice\Controller\ErrorResponse.class
-com\assignmentservice\assignmentservice\Controller\SubmissionController$AssignmentIdRequest.class
 com\assignmentservice\assignmentservice\Service\FileService.class
 com\assignmentservice\assignmentservice\Service\AssignmentService.class
 com\assignmentservice\assignmentservice\Repository\GradingRepository.class
-com\assignmentservice\assignmentservice\Service\StudentProgressService.class
 com\assignmentservice\assignmentservice\Controller\GradingController$SubmissionGradingResponse.class
 com\assignmentservice\assignmentservice\Model\Grading.class
 com\assignmentservice\assignmentservice\Controller\AssignmentController.class

@@ -1,6 +1,8 @@
 package com.assignmentservice.assignmentservice.Controller;
 
+import com.assignmentservice.assignmentservice.Model.Assignment;
 import com.assignmentservice.assignmentservice.Model.Submission;
+import com.assignmentservice.assignmentservice.Service.AssignmentService;
 import com.assignmentservice.assignmentservice.Service.SubmissionService;
 import com.assignmentservice.assignmentservice.Service.FileService;
 import com.mongodb.client.gridfs.model.GridFSFile;
@@ -17,10 +19,8 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.util.*;
-import com.assignmentservice.assignmentservice.Model.StudentProgress;
 
 @RestController
-@CrossOrigin(origins = "http://localhost:8080")
 @RequestMapping("/api/submissions")
 public class SubmissionController {
 
@@ -33,7 +33,10 @@ public class SubmissionController {
     private FileService fileService;
 
     @Autowired
-    private com.assignmentservice.assignmentservice.Service.StudentProgressService studentProgressService;
+    private AssignmentService assignmentService;
+
+    @Autowired
+    private com.assignmentservice.assignmentservice.Repository.GradingRepository gradingRepository;
 
     @PostMapping(consumes = "multipart/form-data")
     public ResponseEntity<?> submitAssignment(
@@ -51,6 +54,30 @@ public class SubmissionController {
             logger.error("Failed to submit assignment for studentRollNumber: {}, assignmentId: {}", studentRollNumber, assignmentId, e);
             return ResponseEntity.badRequest()
                     .body(new ErrorResponse("Failed to submit assignment: " + e.getMessage()));
+        }
+    }
+
+    @PostMapping("/status")
+    public ResponseEntity<?> updateSubmissionStatus(@RequestBody UpdateSubmissionStatusRequest request) {
+        try {
+            Assignment assignment = assignmentService.getAssignmentById(request.getAssignmentId())
+                    .orElseThrow(() -> new IllegalArgumentException("Assignment not found for ID: " + request.getAssignmentId()));
+            Submission submission = submissionService.updateSubmissionStatus(
+                request.getSubmissionId(), 
+                request.getStatus(),
+                assignment.getTitle()
+            );
+
+            Map<String, Object> response = new HashMap<>();
+            response.put("message", "Submission status updated to " + request.getStatus());
+            response.put("submission", submission);
+            return ResponseEntity.ok(response);
+        } catch (IllegalArgumentException e) {
+            logger.error("Failed to update submission status: {}", e.getMessage());
+            return ResponseEntity.badRequest().body(new ErrorResponse(e.getMessage()));
+        } catch (Exception e) {
+            logger.error("Unexpected error updating submission status: {}", e.getMessage(), e);
+            return ResponseEntity.status(500).body(new ErrorResponse("Internal server error: " + e.getMessage()));
         }
     }
 
@@ -149,28 +176,37 @@ public class SubmissionController {
         }
 
         try {
-            Optional<StudentProgress> progressOpt = studentProgressService.getProgressByStudentAndCourse(studentRollNumber, courseId);
-            double progressPercentage;
-            if (progressOpt.isPresent()) {
-                progressPercentage = progressOpt.get().getProgressPercentage();
-                logger.info("Retrieved cached progress {}% for studentRollNumber: {}, courseId: {}", progressPercentage, studentRollNumber, courseId);
-            } else {
-                progressPercentage = studentProgressService.calculateProgress(studentRollNumber, courseId);
-                logger.info("Calculated progress {}% for studentRollNumber: {}, courseId: {}", progressPercentage, studentRollNumber, courseId);
+            List<Assignment> assignments = assignmentService.getAssignmentsByCourseId(courseId);
+            long totalAssignments = assignments.size();
+            if (totalAssignments == 0) {
+                logger.warn("No assignments found for courseId: {}", courseId);
+                return ResponseEntity.ok()
+                        .body(Map.of(
+                            "message", "No assignments found for the course",
+                            "studentRollNumber", studentRollNumber,
+                            "courseId", courseId,
+                            "progressPercentage", 0.0
+                        ));
             }
 
+            List<String> assignmentIds = assignments.stream()
+                    .map(Assignment::getAssignmentId)
+                    .toList();
+
+            long submissionCount = submissionService.countByStudentRollNumberAndAssignmentIds(studentRollNumber, assignmentIds);
+            double progressPercentage = (double) submissionCount / totalAssignments * 100;
+            progressPercentage = Math.round(progressPercentage * 100.0) / 100.0;
+
             Map<String, Object> response = new HashMap<>();
-            response.put("message", "Progress retrieved successfully");
+            response.put("message", "Progress calculated successfully");
             response.put("studentRollNumber", studentRollNumber);
             response.put("courseId", courseId);
-            response.put("progress", progressPercentage);
+            response.put("progressPercentage", progressPercentage);
+            logger.info("Calculated progress {}% for studentRollNumber: {}, courseId: {}", 
+                progressPercentage, studentRollNumber, courseId);
             return ResponseEntity.ok(response);
-        } catch (IllegalArgumentException e) {
-            logger.error("Failed to retrieve progress for studentRollNumber: {}, courseId: {}, reason: {}", studentRollNumber, courseId, e.getMessage());
-            return ResponseEntity.badRequest()
-                    .body(new ErrorResponse("Failed to retrieve progress: " + e.getMessage()));
         } catch (Exception e) {
-            logger.error("Unexpected error retrieving progress for studentRollNumber: {}, courseId: {}", studentRollNumber, courseId, e);
+            logger.error("Unexpected error calculating progress for studentRollNumber: {}, courseId: {}", studentRollNumber, courseId, e);
             return ResponseEntity.status(500)
                     .body(new ErrorResponse("Internal server error: " + e.getMessage()));
         }
@@ -186,42 +222,84 @@ public class SubmissionController {
         }
 
         try {
-            Optional<StudentProgress> progressOpt = studentProgressService.getProgressByStudentAndCourse(studentRollNumber, courseId);
-            Double averageGrade;
-            if (progressOpt.isPresent() && progressOpt.get().getAverageGrade() != null) {
-                averageGrade = progressOpt.get().getAverageGrade();
-                logger.info("Retrieved cached average grade {} for studentRollNumber: {}, courseId: {}", averageGrade, studentRollNumber, courseId);
-            } else {
-                averageGrade = studentProgressService.calculateAverageGrade(studentRollNumber, courseId);
-                logger.info("Calculated average grade {} for studentRollNumber: {}, courseId: {}", averageGrade != null ? averageGrade : "Not graded", studentRollNumber, courseId);
+            List<Assignment> assignments = assignmentService.getAssignmentsByCourseId(courseId);
+            if (assignments.isEmpty()) {
+                logger.warn("No assignments found for courseId: {}", courseId);
+                return ResponseEntity.ok()
+                        .body(Map.of(
+                            "message", "No assignments found for the course",
+                            "studentRollNumber", studentRollNumber,
+                            "courseId", courseId,
+                            "averageGrade", null
+                        ));
             }
 
+            List<String> assignmentIds = assignments.stream()
+                    .map(Assignment::getAssignmentId)
+                    .toList();
+
+            double totalGrade = 0.0;
+            int gradedAssignments = 0;
+            for (String assignmentId : assignmentIds) {
+                Optional<com.assignmentservice.assignmentservice.Model.Grading> gradingOpt = gradingRepository.findByStudentRollNumberAndAssignmentId(studentRollNumber, assignmentId);
+                if (gradingOpt.isPresent()) {
+                    String grade = gradingOpt.get().getGrade();
+                    if (grade != null && !grade.isBlank()) {
+                        totalGrade += convertLetterGradeToNumber(grade);
+                        gradedAssignments++;
+                    }
+                }
+            }
+
+            Double averageGrade = gradedAssignments > 0 ? Math.round((totalGrade / gradedAssignments) * 100.0) / 100.0 : null;
+
             Map<String, Object> response = new HashMap<>();
-            response.put("message", "Average grade retrieved successfully");
+            response.put("message", "Average grade calculated successfully");
             response.put("studentRollNumber", studentRollNumber);
             response.put("courseId", courseId);
             response.put("averageGrade", averageGrade != null ? averageGrade : "Not graded");
+            logger.info("Calculated average grade {} for studentRollNumber: {}, courseId: {}", 
+                averageGrade != null ? averageGrade : "Not graded", studentRollNumber, courseId);
             return ResponseEntity.ok(response);
-        } catch (IllegalArgumentException e) {
-            logger.error("Failed to retrieve average grade for studentRollNumber: {}, courseId: {}, reason: {}", studentRollNumber, courseId, e.getMessage());
-            return ResponseEntity.badRequest()
-                    .body(new ErrorResponse("Failed to retrieve average grade: " + e.getMessage()));
         } catch (Exception e) {
-            logger.error("Unexpected error retrieving average grade for studentRollNumber: {}, courseId: {}", studentRollNumber, courseId, e);
+            logger.error("Unexpected error calculating average grade for studentRollNumber: {}, courseId: {}", studentRollNumber, courseId, e);
             return ResponseEntity.status(500)
                     .body(new ErrorResponse("Internal server error: " + e.getMessage()));
         }
+    }
+
+    private double convertLetterGradeToNumber(String grade) {
+        if (grade == null || grade.isBlank()) {
+            logger.error("Grade is null or blank");
+            throw new IllegalArgumentException("Grade cannot be null or blank");
+        }
+        switch (grade.toUpperCase()) {
+            case "A+": return 95.0;
+            case "A": return 90.0;
+            case "B+": return 85.0;
+            case "B": return 80.0;
+            case "C+": return 75.0;
+            case "C": return 70.0;
+            case "D+": return 65.0;
+            case "D": return 60.0;
+            case "F": return 0.0;
+            default:
+                logger.error("Invalid grade format: {}", grade);
+                throw new IllegalArgumentException("Invalid grade format: " + grade);
+        }
+    }
+
+    @Data
+    public static class UpdateSubmissionStatusRequest {
+        private String submissionId;
+        private String status;
+        private String assignmentId;
     }
 
     @Data
     public static class DeleteSubmissionRequest {
         private String assignmentId;
         private String studentRollNumber;
-    }
-
-    @Data
-    public static class AssignmentIdRequest {
-        private String assignmentId;
     }
 
     @Data

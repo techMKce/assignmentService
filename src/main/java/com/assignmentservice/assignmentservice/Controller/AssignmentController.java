@@ -16,6 +16,7 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.IOException;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.util.*;
 
 @RestController
@@ -42,9 +43,15 @@ public class AssignmentController {
             assignment.setCourseId(courseId);
             assignment.setTitle(title);
             assignment.setDescription(description);
+            assignment.setResourceLink(resourceLink); // Store resourceLink
 
             DateTimeFormatter formatter = DateTimeFormatter.ISO_LOCAL_DATE_TIME;
-            assignment.setDueDate(LocalDateTime.parse(dueDate, formatter));
+            try {
+                assignment.setDueDate(LocalDateTime.parse(dueDate, formatter));
+            } catch (DateTimeParseException e) {
+                return ResponseEntity.badRequest()
+                        .body(new ErrorResponse("Invalid dueDate format; use ISO_LOCAL_DATE_TIME (e.g., 2025-06-01T23:59:00)"));
+            }
 
             String assignmentId = UUID.randomUUID().toString();
             assignment.setAssignmentId(assignmentId);
@@ -87,7 +94,7 @@ public class AssignmentController {
                         fileService.getGridFsTemplate().getResource(gridFSFile).getInputStream()));
     }
 
-    @PutMapping( consumes = "multipart/form-data")
+    @PutMapping(consumes = "multipart/form-data")
     public ResponseEntity<?> updateAssignment(
             @RequestParam("assignmentId") String assignmentId,
             @RequestParam(value = "courseId", required = false) String courseId,
@@ -118,7 +125,12 @@ public class AssignmentController {
             }
             if (dueDate != null && !dueDate.isBlank()) {
                 DateTimeFormatter formatter = DateTimeFormatter.ISO_LOCAL_DATE_TIME;
-                existingAssignment.setDueDate(LocalDateTime.parse(dueDate, formatter));
+                try {
+                    existingAssignment.setDueDate(LocalDateTime.parse(dueDate, formatter));
+                } catch (DateTimeParseException e) {
+                    return ResponseEntity.badRequest()
+                            .body(new ErrorResponse("Invalid dueDate format; use ISO_LOCAL_DATE_TIME (e.g., 2025-06-01T23:59:00)"));
+                }
             }
             if (file != null && !file.isEmpty()) {
                 if (existingAssignment.getFileNo() != null) {
