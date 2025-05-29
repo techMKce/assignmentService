@@ -6,14 +6,18 @@ import com.assignmentservice.assignmentservice.Model.Todo;
 import com.assignmentservice.assignmentservice.Repository.GradingRepository;
 import com.assignmentservice.assignmentservice.Repository.SubmissionRepository;
 import com.assignmentservice.assignmentservice.Repository.TodoRepository;
+
+
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.io.StringWriter;
 import java.time.LocalDateTime;
 import java.util.*;
+import java.util.stream.IntStream;
 
 @Service
 @Slf4j
@@ -228,6 +232,36 @@ public class SubmissionService {
                 })
                 .toList();
     }
+    public String generateStudentProgressCsvForCourse(String courseId) throws IOException {
+        String validCourseId = Optional.ofNullable(courseId)
+                .filter(id -> !id.isBlank())
+                .orElseThrow(() -> new IllegalArgumentException("Course ID cannot be null or empty"));
+
+        List<StudentProgress> progressList = getStudentProgressForCourse(validCourseId);
+        if (progressList.isEmpty()) {
+            throw new IllegalArgumentException("No student progress data found for course ID: " + validCourseId);
+        }
+
+        StringWriter writer = new StringWriter();
+        writer.write("S.No,Course ID,Student Name,Student Roll Number,Student Department,Student Semester,Progress Percentage,Average Grade\n");
+
+        IntStream.range(0, progressList.size()).forEach(i -> {
+            StudentProgress progress = progressList.get(i);
+            writer.write(String.format("%d,%s,%s,%s,%s,%s,%.2f,%s\n",
+                    i + 1,
+                    escapeCsv(validCourseId),
+                    escapeCsv(Optional.ofNullable(progress.getStudentName()).orElse("Unknown")),
+                    escapeCsv(Optional.ofNullable(progress.getStudentRollNumber()).orElse("Unknown")),
+                    escapeCsv(Optional.ofNullable(progress.getStudentDepartment()).orElse("Unknown")),
+                    escapeCsv(Optional.ofNullable(progress.getStudentSemester()).orElse("Unknown")),
+                    progress.getProgressPercentage(),
+                    escapeCsv(Optional.ofNullable(progress.getAverageGrade())
+                            .map(Object::toString)
+                            .orElse("Not Graded"))));
+        });
+
+        return writer.toString();
+    }
 
     private double convertLetterGradeToNumber(String grade) {
         return Optional.ofNullable(grade)
@@ -235,6 +269,11 @@ public class SubmissionService {
                 .map(String::toUpperCase)
                 .map(GRADE_MAP::get)
                 .orElseThrow(() -> new IllegalArgumentException("Invalid grade: " + grade));
+    }
+    private String escapeCsv(String value) {
+        return Optional.ofNullable(value)
+                .map(v -> v.contains(",") || v.contains("\"") || v.contains("\n") ? "\"" + v.replace("\"", "\"\"") + "\"" : v)
+                .orElse("");
     }
 
     public static class StudentProgress {

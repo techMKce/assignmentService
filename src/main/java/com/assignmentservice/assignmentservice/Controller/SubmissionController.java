@@ -185,6 +185,30 @@ public class SubmissionController {
         ));
     }
 
+    @GetMapping("/courses/{courseId}/student-progress/download")
+    public ResponseEntity<?> downloadStudentProgress(@PathVariable String courseId) {
+        return Optional.ofNullable(courseId)
+                .filter(id -> !id.isBlank())
+                .map(id -> {
+                    try {
+                        String sanitizedCourseId = id.replaceAll("[^a-zA-Z0-9]", "_");
+                        String filename = String.format("Course-%s.csv", sanitizedCourseId);
+
+                        String csvContent = submissionService.generateStudentProgressCsvForCourse(id);
+
+                        return ResponseEntity.ok()
+                                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=" + filename)
+                                .contentType(MediaType.parseMediaType("text/csv"))
+                                .body(csvContent);
+                    } catch (IllegalArgumentException e) {
+                        return ResponseEntity.badRequest().body(new ErrorResponse("Error: " + e.getMessage()));
+                    } catch (IOException e) {
+                        return ResponseEntity.status(500).body(new ErrorResponse("Error generating CSV: " + e.getMessage()));
+                    }
+                })
+                .orElseGet(() -> ResponseEntity.badRequest().body(new ErrorResponse("Course ID cannot be null or blank")));
+    }
+
     @GetMapping("/grade/average")
     public ResponseEntity<?> getStudentAverageGrade(@RequestParam("studentRollNumber") String studentRollNumber,
                                                    @RequestParam("courseId") String courseId) {
