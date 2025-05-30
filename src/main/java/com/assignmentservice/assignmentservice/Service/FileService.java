@@ -99,4 +99,9 @@ public class FileService {
         gridFsTemplate.delete(
                 new Query(Criteria.where("metadata.fileNo").is(fileNo)));
     }
+
+    public void deleteFileByFileName(String fileName) {
+        gridFsTemplate.delete(
+                new Query(Criteria.where("filename").is(fileName)));
+    }
 }

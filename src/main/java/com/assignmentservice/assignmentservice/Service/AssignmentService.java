@@ -7,6 +7,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+
 import java.time.LocalDateTime;
 import java.util.*;
 
@@ -22,32 +23,62 @@ public class AssignmentService {
     private FileService fileService;
 
     public Assignment saveAssignment(Assignment assignment) {
-        if (assignment.getAssignmentId() == null || assignment.getAssignmentId().isBlank()) {
-            assignment.setAssignmentId(UUID.randomUUID().toString());
-        }
-        if (assignment.getCreatedAt() == null) {
-            assignment.setCreatedAt(LocalDateTime.now());
-        }
+        String assignmentId = Optional.ofNullable(assignment.getAssignmentId())
+                .filter(id -> !id.isBlank())
+                .orElseGet(() -> UUID.randomUUID().toString());
+        assignment.setAssignmentId(assignmentId);
 
-        logger.info("Saving assignment with ID: {}", assignment.getAssignmentId());
+        Optional.ofNullable(assignment.getCreatedAt())
+                .orElseGet(() -> {
+                    assignment.setCreatedAt(LocalDateTime.now());
+                    return assignment.getCreatedAt();
+                });
+
+        Optional.ofNullable(assignment.getCourseId())
+                .filter(id -> !id.isBlank())
+                .orElseThrow(() -> new ValidationException("Course ID cannot be null or empty"));
+        Optional.ofNullable(assignment.getCourseName())
+                .filter(name -> !name.isBlank())
+                .orElseThrow(() -> new ValidationException("Course Name cannot be null or empty"));
+        Optional.ofNullable(assignment.getCourseFaculty())
+                .filter(faculty -> !faculty.isBlank())
+                .orElseThrow(() -> new ValidationException("Course Faculty cannot be null or empty"));
+        Optional.ofNullable(assignment.getTitle())
+                .filter(title -> !title.isBlank())
+                .orElseThrow(() -> new ValidationException("Title cannot be null or empty"));
+        Optional.ofNullable(assignment.getDescription())
+                .filter(desc -> !desc.isBlank())
+                .orElseThrow(() -> new ValidationException("Description cannot be null or empty"));
+        Optional.ofNullable(assignment.getDueDate())
+                .orElseThrow(() -> new ValidationException("Due date cannot be null"));
+        Optional.ofNullable(assignment.getFileName())
+                .filter(fileName -> !fileName.isBlank())
+                .orElseThrow(() -> new ValidationException("File name cannot be null or empty"));
+
+        logger.info("Saving assignment with ID: {}", assignmentId);
         Assignment savedAssignment = assignmentRepository.save(assignment);
         logger.info("Successfully saved assignment with ID: {}", savedAssignment.getAssignmentId());
         return savedAssignment;
     }
 
     public void deleteAssignment(String id) {
-        if (id == null || id.isBlank()) {
-            throw new ValidationException("Assignment ID cannot be null or empty");
-        }
-        Optional<Assignment> assignment = assignmentRepository.findById(id);
-        if (assignment.isPresent()) {
-            String assignmentId = assignment.get().getAssignmentId();
-            fileService.deleteFileByAssignmentId(assignmentId);
-            assignmentRepository.deleteById(id);
-            logger.info("Successfully deleted assignment with ID: {}", id);
-        } else {
-            throw new ValidationException("Assignment not found with ID: " + id);
-        }
+        String validId = Optional.ofNullable(id)
+                .filter(s -> !s.isBlank())
+                .orElseThrow(() -> new ValidationException("Assignment ID cannot be null or empty"));
+        assignmentRepository.findById(validId)
+                .ifPresentOrElse(
+                        assignment -> {
+                            if (assignment.getFileName() != null) {
+                                fileService.deleteFileByFileName(assignment.getFileName());
+                            }
+                            assignmentRepository.deleteById(validId);
+                            logger.info("Successfully deleted assignment with ID: {}", validId);
+                        },
+                        () -> {
+                            logger.warn("No assignment found with ID: {}", validId);
+                            throw new ValidationException("Assignment not found with ID: " + validId);
+                        }
+                );
     }
 
     public List<Assignment> getAllAssignments() {
@@ -59,22 +90,22 @@ public class AssignmentService {
 
     public Optional<Assignment> getAssignmentById(String id) {
         logger.info("Fetching assignment with ID: {}", id);
-        Optional<Assignment> assignment = assignmentRepository.findById(id);
-        if (assignment.isPresent()) {
-            logger.info("Found assignment with ID: {}", id);
-        } else {
-            logger.warn("No assignment found with ID: {}", id);
-        }
-        return assignment;
+        return Optional.ofNullable(id)
+                .filter(s -> !s.isBlank())
+                .map(assignmentRepository::findById)
+                .orElseGet(() -> {
+                    logger.warn("No assignment found with ID: {}", id);
+                    return Optional.empty();
+                });
     }
 
     public List<Assignment> getAssignmentsByCourseId(String courseId) {
-        if (courseId == null || courseId.isBlank()) {
-            throw new ValidationException("Course ID cannot be null or empty");
-        }
-        logger.info("Fetching assignments for course ID: {}", courseId);
-        List<Assignment> assignments = assignmentRepository.findByCourseId(courseId);
-        logger.info("Retrieved {} assignments for course ID: {}", assignments.size(), courseId);
+        String validCourseId = Optional.ofNullable(courseId)
+                .filter(id -> !id.isBlank())
+                .orElseThrow(() -> new ValidationException("Course ID cannot be null or empty"));
+        logger.info("Fetching assignments for course ID: {}", validCourseId);
+        List<Assignment> assignments = assignmentRepository.findByCourseId(validCourseId);
+        logger.info("Retrieved {} assignments for course ID: {}", assignments.size(), validCourseId);
         return assignments;
     }
 }
