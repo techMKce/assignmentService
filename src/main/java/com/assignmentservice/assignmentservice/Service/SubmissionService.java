@@ -10,11 +10,18 @@ import com.assignmentservice.assignmentservice.Repository.TodoRepository;
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestTemplate;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.util.UriComponentsBuilder;
 
 import java.io.IOException;
 import java.io.StringWriter;
+import java.net.URI;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.IntStream;
@@ -95,6 +102,11 @@ public class SubmissionService {
 
         submission.setStatus(status);
         Submission updatedSubmission = submissionRepository.save(submission);
+
+        if(status.equals("Rejected")){
+            boolean mailStatus = sendMail(assignmentTitle, updatedSubmission);
+            log.info("Mail sent status: {}", mailStatus);
+        }
         log.info("Successfully updated submission status to {} for submissionId: {}", status, submissionId);
 
         todoRepository.deleteByStudentRollNumberAndAssignmentId(submission.getStudentRollNumber(), submission.getAssignmentId());
@@ -111,9 +123,49 @@ public class SubmissionService {
                     todoRepository.save(todo);
                     log.info("Created todo for rejected submission: studentRollNumber={}, assignmentId={}",
                             submission.getStudentRollNumber(), submission.getAssignmentId());
+
+
                 });
 
         return updatedSubmission;
+    }
+
+    private boolean sendMail(String assignmentTitle, Submission submission) {
+
+        RestTemplate restTemplate = new RestTemplate();
+        String emailServiceUrl = "http://localhost:8080/api/v1/email/sendRejectEmail";
+
+        URI uri = UriComponentsBuilder.fromHttpUrl(emailServiceUrl)
+                .queryParam("id", submission.getStudentRollNumber())
+                .build()
+                .toUri();
+
+        Map<String, String> requestBody = getStringStringMap(assignmentTitle, submission);
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        HttpEntity<Map<String, String>> requestEntity = new HttpEntity<>(requestBody, headers);
+        ResponseEntity<Boolean> response = restTemplate.postForEntity(
+                uri,
+                requestEntity,
+                Boolean.class
+        );
+        return Boolean.TRUE.equals(response.getBody());
+    }
+
+    private static Map<String, String> getStringStringMap(String assignmentTitle, Submission submission) {
+        String emailBody = "Your submission for the assignment '" + assignmentTitle + "' (Assignment ID: " + submission.getAssignmentId() +
+                ") has been rejected.\n\nAssignment Details:\n" +
+                "Assignment ID: " + submission.getAssignmentId() + "\n" +
+                "Student Name: " + submission.getStudentName() + "\n" +
+                "Student Roll Number: " + submission.getStudentRollNumber() + "\n" +
+                "File Number: " + submission.getFileNo() + "\n" +
+                "Status: " + submission.getStatus() + "\n\n" +
+                "Please review the feedback and resubmit if necessary.";
+        String emailSubject = "Submission Rejected: " + assignmentTitle;
+        Map<String, String> requestBody = new HashMap<>();
+        requestBody.put("subject", emailSubject);
+        requestBody.put("body", emailBody);
+        return requestBody;
     }
 
     public List<Submission> getSubmissionsByAssignmentId(String assignmentId) {
