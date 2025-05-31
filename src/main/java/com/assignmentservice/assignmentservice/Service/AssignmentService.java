@@ -28,8 +28,17 @@ public class AssignmentService {
         if (assignment.getCreatedAt() == null) {
             assignment.setCreatedAt(LocalDateTime.now());
         }
+        if (assignment.getFileNo() == null || assignment.getFileNo().isBlank()) {
+            throw new ValidationException("FileNo cannot be null or empty for assignment ID: " + 
+                                         assignment.getAssignmentId());
+        }
+        if (assignment.getFileName() == null || assignment.getFileName().isBlank()) {
+            throw new ValidationException("FileName cannot be null or empty for assignment ID: " + 
+                                         assignment.getAssignmentId());
+        }
 
-        logger.info("Saving assignment with ID: {}", assignment.getAssignmentId());
+        logger.info("Saving assignment with ID: {}, fileNo: {}, fileName: {}", 
+                    assignment.getAssignmentId(), assignment.getFileNo(), assignment.getFileName());
         Assignment savedAssignment = assignmentRepository.save(assignment);
         logger.info("Successfully saved assignment with ID: {}", savedAssignment.getAssignmentId());
         return savedAssignment;
@@ -41,8 +50,11 @@ public class AssignmentService {
         }
         Optional<Assignment> assignment = assignmentRepository.findById(id);
         if (assignment.isPresent()) {
-            String assignmentId = assignment.get().getAssignmentId();
-            fileService.deleteFileByAssignmentId(assignmentId);
+            String fileNo = assignment.get().getFileNo();
+            if (fileNo != null && !fileNo.isBlank()) {
+                fileService.deleteFileByFileNo(fileNo);
+                logger.info("Deleted file with fileNo: {} for assignmentId: {}", fileNo, id);
+            }
             assignmentRepository.deleteById(id);
             logger.info("Successfully deleted assignment with ID: {}", id);
         } else {

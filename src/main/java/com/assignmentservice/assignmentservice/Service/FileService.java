@@ -1,5 +1,7 @@
 package com.assignmentservice.assignmentservice.Service;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.mongodb.gridfs.GridFsTemplate;
 import org.springframework.stereotype.Service;
@@ -13,6 +15,8 @@ import java.util.UUID;
 
 @Service
 public class FileService {
+
+    private static final Logger logger = LoggerFactory.getLogger(FileService.class);
 
     @Autowired
     private GridFsTemplate gridFsTemplate;
@@ -29,6 +33,11 @@ public class FileService {
             throw new IllegalArgumentException("Assignment ID cannot be null or empty");
         }
 
+        logger.info("Uploading file for assignmentId: {}, originalFilename: {}", assignmentId, file.getOriginalFilename());
+
+        // Delete any existing file for this assignmentId
+        deleteFileByAssignmentId(assignmentId);
+
         String fileNo = UUID.randomUUID().toString();
 
         gridFsTemplate.store(
@@ -38,6 +47,7 @@ public class FileService {
                 new com.mongodb.BasicDBObject("assignmentId", assignmentId)
                         .append("fileNo", fileNo));
 
+        logger.info("File uploaded successfully, fileNo: {}, filename: {}", fileNo, file.getOriginalFilename());
         return fileNo;
     }
 
@@ -56,6 +66,12 @@ public class FileService {
             throw new IllegalArgumentException("File name cannot be null or empty");
         }
 
+        logger.info("Uploading submission file for submissionId: {}, assignmentId: {}, fileName: {}", 
+                    submissionId, assignmentId, fileName);
+
+        // Delete any existing file for this submissionId
+        deleteFileBySubmissionId(submissionId);
+
         String fileNo = UUID.randomUUID().toString();
 
         gridFsTemplate.store(
@@ -67,36 +83,51 @@ public class FileService {
                         .append("fileName", fileName)
                         .append("fileNo", fileNo));
 
+        logger.info("Submission file uploaded successfully, fileNo: {}", fileNo);
         return fileNo;
     }
 
     public GridFSFile getFileByAssignmentId(String assignmentId) {
-        return gridFsTemplate.findOne(
+        logger.info("Retrieving file by assignmentId: {}", assignmentId);
+        GridFSFile file = gridFsTemplate.findOne(
                 new Query(Criteria.where("metadata.assignmentId").is(assignmentId)));
+        return file;
     }
 
     public GridFSFile getFileBySubmissionId(String submissionId) {
-        return gridFsTemplate.findOne(
+        logger.info("Retrieving file by submissionId: {}", submissionId);
+        GridFSFile file = gridFsTemplate.findOne(
                 new Query(Criteria.where("metadata.submissionId").is(submissionId)));
+        
+        return file;
     }
 
     public void deleteFileByAssignmentId(String assignmentId) {
+        logger.info("Deleting file for assignmentId: {}", assignmentId);
         gridFsTemplate.delete(
                 new Query(Criteria.where("metadata.assignmentId").is(assignmentId)));
+        logger.info("Deleted file for assignmentId: {}", assignmentId);
     }
 
     public void deleteFileBySubmissionId(String submissionId) {
+        logger.info("Deleting file for submissionId: {}", submissionId);
         gridFsTemplate.delete(
                 new Query(Criteria.where("metadata.submissionId").is(submissionId)));
+        logger.info("Deleted file for submissionId: {}", submissionId);
     }
 
     public GridFSFile getFileByFileNo(String fileNo) {
-        return gridFsTemplate.findOne(
+        logger.info("Retrieving file by fileNo: {}", fileNo);
+        GridFSFile file = gridFsTemplate.findOne(
                 new Query(Criteria.where("metadata.fileNo").is(fileNo)));
+        
+        return file;
     }
 
     public void deleteFileByFileNo(String fileNo) {
+        logger.info("Deleting file for fileNo: {}", fileNo);
         gridFsTemplate.delete(
                 new Query(Criteria.where("metadata.fileNo").is(fileNo)));
+        logger.info("Deleted file for fileNo: {}", fileNo);
     }
 }

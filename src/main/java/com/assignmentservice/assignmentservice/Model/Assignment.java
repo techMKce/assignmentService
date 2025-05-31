@@ -19,14 +19,14 @@ public class Assignment {
     @Id
     private String assignmentId;
 
-    @NotBlank(message = "CourseId Cannot be empty")
+    @NotBlank(message = "Course ID cannot be empty")
     @Field("courseId")
     private String courseId;
 
-    @NotBlank(message =" courseName can't be empty")
+    @NotBlank(message = "Course name cannot be empty")
     private String courseName;
 
-    @NotBlank(message = "courseFaculty can't  be empty")
+    @NotBlank(message = "Course faculty cannot be empty")
     private String courseFaculty;
 
     @NotBlank(message = "Title cannot be empty")
@@ -41,7 +41,11 @@ public class Assignment {
     @NotNull(message = "Created at cannot be null")
     private LocalDateTime createdAt = LocalDateTime.now();
 
+    @NotBlank(message = "FileNo cannot be empty")
     private String fileNo;
+
+    @NotBlank(message = "FileName cannot be empty")
+    private String fileName;
 
     private String resourceLink;
 }
