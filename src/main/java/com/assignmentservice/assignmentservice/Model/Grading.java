@@ -17,7 +17,7 @@ import jakarta.validation.constraints.NotBlank;
 public class Grading {
     @Id
     private String id;
-
+    
     @NotBlank(message = "Assignment ID cannot be empty")
     @Field("assignmentId")
     private String assignmentId;
@@ -26,7 +26,7 @@ public class Grading {
     @Field("studentName")
     private String studentName;
 
-    @NotBlank(message = "Student department is required")
+     @NotBlank(message = "Student department is required")
     @Field("studentDepartment")
     private String studentDepartment;
 
@@ -40,5 +40,5 @@ public class Grading {
 
     private String feedback;
     private LocalDateTime gradedAt;
-
+    
 }
