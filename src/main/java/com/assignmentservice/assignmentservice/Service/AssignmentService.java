@@ -29,16 +29,16 @@ public class AssignmentService {
             assignment.setCreatedAt(LocalDateTime.now());
         }
         if (assignment.getFileNo() == null || assignment.getFileNo().isBlank()) {
-            throw new ValidationException("FileNo cannot be null or empty for assignment ID: " + 
-                                         assignment.getAssignmentId());
+            throw new ValidationException("FileNo cannot be null or empty for assignment ID: " +
+                    assignment.getAssignmentId());
         }
         if (assignment.getFileName() == null || assignment.getFileName().isBlank()) {
-            throw new ValidationException("FileName cannot be null or empty for assignment ID: " + 
-                                         assignment.getAssignmentId());
+            throw new ValidationException("FileName cannot be null or empty for assignment ID: " +
+                    assignment.getAssignmentId());
         }
 
-        logger.info("Saving assignment with ID: {}, fileNo: {}, fileName: {}", 
-                    assignment.getAssignmentId(), assignment.getFileNo(), assignment.getFileName());
+        logger.info("Saving assignment with ID: {}, fileNo: {}, fileName: {}",
+                assignment.getAssignmentId(), assignment.getFileNo(), assignment.getFileName());
         Assignment savedAssignment = assignmentRepository.save(assignment);
         logger.info("Successfully saved assignment with ID: {}", savedAssignment.getAssignmentId());
         return savedAssignment;

@@ -16,11 +16,15 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @RestController
 @CrossOrigin(origins = "http://localhost:8080")
 @RequestMapping("/api/gradings")
 public class GradingController {
+
+    private static final Logger logger = LoggerFactory.getLogger(GradingController.class);
 
     @Autowired
     private GradingService gradingService;
@@ -49,14 +53,17 @@ public class GradingController {
                     } catch (IllegalArgumentException e) {
                         return ResponseEntity.badRequest().body(new ErrorResponse(e.getMessage()));
                     } catch (Exception e) {
-                        return ResponseEntity.status(500).body(new ErrorResponse("Error assigning grade: " + e.getMessage()));
+                        return ResponseEntity.status(500)
+                                .body(new ErrorResponse("Error assigning grade: " + e.getMessage()));
                     }
                 })
-                .orElseGet(() -> ResponseEntity.badRequest().body(new ErrorResponse("Student Roll Number and Assignment ID cannot be null or empty")));
+                .orElseGet(() -> ResponseEntity.badRequest()
+                        .body(new ErrorResponse("Student Roll Number and Assignment ID cannot be null or empty")));
     }
 
     @GetMapping
-    public ResponseEntity<?> getSubmissionsAndGradingsByAssignmentId(@RequestParam("assignmentId") String assignmentId) {
+    public ResponseEntity<?> getSubmissionsAndGradingsByAssignmentId(
+            @RequestParam("assignmentId") String assignmentId) {
         return Optional.ofNullable(assignmentId)
                 .filter(s -> !s.isBlank())
                 .map(id -> {
@@ -69,10 +76,12 @@ public class GradingController {
                                 "gradings", gradings));
                     } catch (Exception e) {
                         return ResponseEntity.status(500)
-                                .body(new ErrorResponse("Error retrieving submissions and gradings: " + e.getMessage()));
+                                .body(new ErrorResponse(
+                                        "Error retrieving submissions and gradings: " + e.getMessage()));
                     }
                 })
-                .orElseGet(() -> ResponseEntity.badRequest().body(new ErrorResponse("Assignment ID cannot be null or blank")));
+                .orElseGet(() -> ResponseEntity.badRequest()
+                        .body(new ErrorResponse("Assignment ID cannot be null or blank")));
     }
 
     @GetMapping("/download")
@@ -81,27 +90,38 @@ public class GradingController {
                 .filter(s -> !s.isBlank())
                 .map(id -> {
                     try {
+                        // Fetch Course Name and Assignment Title for filename
                         Assignment assignment = assignmentService.getAssignmentById(id)
                                 .orElseThrow(() -> new IllegalArgumentException("Assignment not found for ID: " + id));
-                        String assignmentName = assignment.getTitle().replaceAll("[^a-zA-Z0-9]", "_");
-                        String courseId = Optional.ofNullable(assignment.getCourseId())
-                                .filter(s -> !s.isBlank())
-                                .orElse("Unknown");
-                        String filename = String.format("%s_%s.csv", assignmentName, courseId);
+                        String courseName = assignment.getCourseName();
+                        String assignmentTitle = assignment.getTitle();
 
-                        String csvContent = gradingService.generateGradesCsvForAssignment(id);
+                        // Sanitize for filename
+                        String sanitizedCourseName = courseName.replaceAll("[^a-zA-Z0-9]", "_");
+                        String sanitizedAssignmentTitle = assignmentTitle.replaceAll("[^a-zA-Z0-9]", "_");
+                        String filename = String.format("%s-%s.csv", sanitizedCourseName, sanitizedAssignmentTitle);
+
+                        String csvContent = gradingService.generateGradingCsvForAssignment(id);
 
                         return ResponseEntity.ok()
                                 .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=" + filename)
                                 .contentType(MediaType.parseMediaType("text/csv"))
                                 .body(csvContent);
                     } catch (IllegalArgumentException e) {
-                        return ResponseEntity.badRequest().body(new ErrorResponse("Error: " + e.getMessage()));
+                        logger.error("Error generating grading CSV: {}", e.getMessage());
+                        return ResponseEntity.badRequest()
+                                .body(Map.of("message", "Error: " + e.getMessage()));
                     } catch (IOException e) {
-                        return ResponseEntity.status(500).body(new ErrorResponse("Error generating CSV: " + e.getMessage()));
+                        logger.error("IO error generating grading CSV: {}", e.getMessage());
+                        return ResponseEntity.status(500)
+                                .body(Map.of("message", "Error generating CSV: " + e.getMessage()));
                     }
                 })
-                .orElseGet(() -> ResponseEntity.badRequest().body(new ErrorResponse("Assignment ID cannot be null or blank")));
+                .orElseGet(() -> {
+                    logger.error("Assignment ID is null or blank");
+                    return ResponseEntity.badRequest()
+                            .body(Map.of("message", "Assignment ID cannot be null or blank"));
+                });
     }
 
     @DeleteMapping
@@ -120,10 +140,12 @@ public class GradingController {
                     } catch (IllegalArgumentException e) {
                         return ResponseEntity.badRequest().body(new ErrorResponse(e.getMessage()));
                     } catch (Exception e) {
-                        return ResponseEntity.status(500).body(new ErrorResponse("Error deleting grade: " + e.getMessage()));
+                        return ResponseEntity.status(500)
+                                .body(new ErrorResponse("Error deleting grade: " + e.getMessage()));
                     }
                 })
-                .orElseGet(() -> ResponseEntity.badRequest().body(new ErrorResponse("Student Roll Number and Assignment ID cannot be empty")));
+                .orElseGet(() -> ResponseEntity.badRequest()
+                        .body(new ErrorResponse("Student Roll Number and Assignment ID cannot be empty")));
     }
 
     public static class GradeAssignmentRequest {
@@ -132,14 +154,37 @@ public class GradingController {
         private String grade;
         private String feedback;
 
-        public String getStudentRollNumber() { return studentRollNumber; }
-        public void setStudentRollNumber(String studentRollNumber) { this.studentRollNumber = studentRollNumber; }
-        public String getAssignmentId() { return assignmentId; }
-        public void setAssignmentId(String assignmentId) { this.assignmentId = assignmentId; }
-        public String getGrade() { return grade; }
-        public void setGrade(String grade) { this.grade = grade; }
-        public String getFeedback() { return feedback; }
-        public void setFeedback(String feedback) { this.feedback = feedback; }
+        public String getStudentRollNumber() {
+            return studentRollNumber;
+        }
+
+        public void setStudentRollNumber(String studentRollNumber) {
+            this.studentRollNumber = studentRollNumber;
+        }
+
+        public String getAssignmentId() {
+            return assignmentId;
+        }
+
+        public void setAssignmentId(String assignmentId) {
+            this.assignmentId = assignmentId;
+        }
+
+        public String getGrade() {
+            return grade;
+        }
+
+        public void setGrade(String grade) {
+            this.grade = grade;
+        }
+
+        public String getFeedback() {
+            return feedback;
+        }
+
+        public void setFeedback(String feedback) {
+            this.feedback = feedback;
+        }
     }
 
     public static class ErrorResponse {
@@ -149,7 +194,12 @@ public class GradingController {
             this.message = message;
         }
 
-        public String getMessage() { return message; }
-        public void setMessage(String message) { this.message = message; }
+        public String getMessage() {
+            return message;
+        }
+
+        public void setMessage(String message) {
+            this.message = message;
+        }
     }
 }

@@ -1,4 +1,5 @@
 com\assignmentservice\assignmentservice\Controller\SubmissionController$DeleteSubmissionRequest.class
+com\assignmentservice\assignmentservice\Controller\TodoController.class
 com\assignmentservice\assignmentservice\Controller\GradingController$ErrorResponse.class
 com\assignmentservice\assignmentservice\Controller\AssignmentIdRequest.class
 com\assignmentservice\assignmentservice\Model\Submission.class

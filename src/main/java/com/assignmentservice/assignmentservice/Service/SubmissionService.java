@@ -7,7 +7,6 @@ import com.assignmentservice.assignmentservice.Repository.GradingRepository;
 import com.assignmentservice.assignmentservice.Repository.SubmissionRepository;
 import com.assignmentservice.assignmentservice.Repository.TodoRepository;
 
-
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpEntity;
@@ -52,32 +51,40 @@ public class SubmissionService {
             "B+", 70.0,
             "B", 60.0,
             "C+", 50.0,
-            "C", 40.0
-    );
+            "C", 40.0);
 
-    public Submission saveSubmission(String assignmentId, String studentName, String studentRollNumber, String studentDepartment, String studentSemester, MultipartFile file) throws IOException {
-        log.info("Attempting to save submission for studentRollNumber: {}, assignmentId: {}", studentRollNumber, assignmentId);
+    public Submission saveSubmission(String assignmentId, String studentName, String studentRollNumber,
+            String studentEmail,
+            String studentDepartment, String studentSemester, MultipartFile file) throws IOException {
+        log.info("Attempting to save submission for studentRollNumber: {}, assignmentId: {}", studentRollNumber,
+                assignmentId);
 
-        assignmentService.getAssignmentById(
+        Assignment assignment = assignmentService.getAssignmentById(
                 Optional.ofNullable(assignmentId)
                         .filter(id -> !id.isBlank())
-                        .orElseThrow(() -> new IllegalArgumentException("Assignment ID cannot be null or blank"))
-        ).orElseThrow(() -> new IllegalArgumentException("Assignment not found for ID: " + assignmentId));
+                        .orElseThrow(() -> new IllegalArgumentException("Assignment ID cannot be null or blank")))
+                .orElseThrow(() -> new IllegalArgumentException("Assignment not found for ID: " + assignmentId));
 
         submissionRepository.findByAssignmentIdAndStudentRollNumber(assignmentId, studentRollNumber)
                 .ifPresent(submission -> {
                     submissionRepository.delete(submission);
                     todoRepository.deleteByStudentRollNumberAndAssignmentId(studentRollNumber, assignmentId);
                     fileService.deleteFileByFileNo(submission.getFileNo());
-                    log.info("Deleted existing submission for studentRollNumber: {}, assignmentId: {}", studentRollNumber, assignmentId);
+                    log.info("Deleted existing submission for studentRollNumber: {}, assignmentId: {}",
+                            studentRollNumber, assignmentId);
                 });
 
-        String fileNo = fileService.uploadSubmissionFile(file, UUID.randomUUID().toString(), studentRollNumber, assignmentId);
+        String fileNo = fileService.uploadSubmissionFile(file, UUID.randomUUID().toString(), studentRollNumber,
+                assignmentId);
         Submission submission = new Submission();
         submission.setId(UUID.randomUUID().toString());
         submission.setAssignmentId(assignmentId);
+        submission.setCourseId(assignment.getCourseId());
+        submission.setCourseName(assignment.getCourseName());
+        submission.setCourseFaculty(assignment.getCourseFaculty());
         submission.setStudentName(studentName);
         submission.setStudentRollNumber(studentRollNumber);
+        submission.setStudentEmail(studentEmail);
         submission.setStudentDepartment(studentDepartment);
         submission.setStudentSemester(studentSemester);
         submission.setSubmittedAt(LocalDateTime.now());
@@ -85,7 +92,8 @@ public class SubmissionService {
         submission.setStatus("Accepted");
 
         Submission savedSubmission = submissionRepository.save(submission);
-        log.info("Successfully saved submission for studentRollNumber: {}, assignmentId: {}", studentRollNumber, assignmentId);
+        log.info("Successfully saved submission for studentRollNumber: {}, assignmentId: {}", studentRollNumber,
+                assignmentId);
         return savedSubmission;
     }
 
@@ -103,13 +111,14 @@ public class SubmissionService {
         submission.setStatus(status);
         Submission updatedSubmission = submissionRepository.save(submission);
 
-        if(status.equals("Rejected")){
+        if (status.equals("Rejected")) {
             boolean mailStatus = sendMail(assignmentTitle, updatedSubmission);
             log.info("Mail sent status: {}", mailStatus);
         }
         log.info("Successfully updated submission status to {} for submissionId: {}", status, submissionId);
 
-        todoRepository.deleteByStudentRollNumberAndAssignmentId(submission.getStudentRollNumber(), submission.getAssignmentId());
+        todoRepository.deleteByStudentRollNumberAndAssignmentId(submission.getStudentRollNumber(),
+                submission.getAssignmentId());
 
         Optional.of(status)
                 .filter(s -> s.equals("Rejected"))
@@ -123,15 +132,12 @@ public class SubmissionService {
                     todoRepository.save(todo);
                     log.info("Created todo for rejected submission: studentRollNumber={}, assignmentId={}",
                             submission.getStudentRollNumber(), submission.getAssignmentId());
-
-
                 });
 
         return updatedSubmission;
     }
 
     private boolean sendMail(String assignmentTitle, Submission submission) {
-
         RestTemplate restTemplate = new RestTemplate();
         String emailServiceUrl = "http://localhost:8080/api/v1/email/sendRejectEmail";
 
@@ -147,17 +153,19 @@ public class SubmissionService {
         ResponseEntity<Boolean> response = restTemplate.postForEntity(
                 uri,
                 requestEntity,
-                Boolean.class
-        );
+                Boolean.class);
         return Boolean.TRUE.equals(response.getBody());
     }
 
     private static Map<String, String> getStringStringMap(String assignmentTitle, Submission submission) {
-        String emailBody = "Your submission for the assignment '" + assignmentTitle + "' (Assignment ID: " + submission.getAssignmentId() +
+        String emailBody = "Your submission for the assignment '" + assignmentTitle + "' (Assignment ID: "
+                + submission.getAssignmentId() +
                 ") has been rejected.\n\nAssignment Details:\n" +
                 "Assignment ID: " + submission.getAssignmentId() + "\n" +
+                "Course: " + submission.getCourseName() + "\n" +
                 "Student Name: " + submission.getStudentName() + "\n" +
                 "Student Roll Number: " + submission.getStudentRollNumber() + "\n" +
+                "Student Email: " + Optional.ofNullable(submission.getStudentEmail()).orElse("Not provided") + "\n" +
                 "File Number: " + submission.getFileNo() + "\n" +
                 "Status: " + submission.getStatus() + "\n\n" +
                 "Please review the feedback and resubmit if necessary.";
@@ -169,11 +177,19 @@ public class SubmissionService {
     }
 
     public List<Submission> getSubmissionsByAssignmentId(String assignmentId) {
-        return submissionRepository.findByAssignmentId(
-                Optional.ofNullable(assignmentId)
-                        .filter(id -> !id.isBlank())
-                        .orElseThrow(() -> new IllegalArgumentException("Assignment ID cannot be null or blank"))
-        );
+        log.info("Fetching submissions for assignmentId: {}", assignmentId);
+        String validAssignmentId = Optional.ofNullable(assignmentId)
+                .filter(assgnId -> !assgnId.isBlank())
+                .orElseThrow(() -> new IllegalArgumentException("Assignment ID cannot be null or blank"));
+
+        // Verify Assignment exists
+        Assignment assignment = assignmentService.getAssignmentById(validAssignmentId)
+                .orElseThrow(() -> new IllegalArgumentException("Assignment not found for ID: " + validAssignmentId));
+        log.info("Assignment found: title={}", assignment.getTitle());
+
+        List<Submission> submissions = submissionRepository.findByAssignmentId(validAssignmentId);
+        log.info("Found {} submissions for assignmentId: {}", submissions.size(), validAssignmentId);
+        return submissions;
     }
 
     public Submission getSubmissionById(String submissionId) {
@@ -194,10 +210,12 @@ public class SubmissionService {
 
         submissionRepository.findByAssignmentIdAndStudentRollNumber(validAssignmentId, validStudentRollNumber)
                 .ifPresent(submission -> {
-                    submissionRepository.deleteByAssignmentIdAndStudentRollNumber(validAssignmentId, validStudentRollNumber);
+                    submissionRepository.deleteByAssignmentIdAndStudentRollNumber(validAssignmentId,
+                            validStudentRollNumber);
                     todoRepository.deleteByStudentRollNumberAndAssignmentId(validStudentRollNumber, validAssignmentId);
                     fileService.deleteFileByFileNo(submission.getFileNo());
-                    log.info("Deleted submission for studentRollNumber: {}, assignmentId: {}", validStudentRollNumber, validAssignmentId);
+                    log.info("Deleted submission for studentRollNumber: {}, assignmentId: {}", validStudentRollNumber,
+                            validAssignmentId);
                 });
     }
 
@@ -208,16 +226,14 @@ public class SubmissionService {
                         .orElseThrow(() -> new IllegalArgumentException("Student Roll Number cannot be null or blank")),
                 Optional.ofNullable(assignmentIds)
                         .filter(ids -> !ids.isEmpty())
-                        .orElseThrow(() -> new IllegalArgumentException("Assignment IDs cannot be null or empty"))
-        );
+                        .orElseThrow(() -> new IllegalArgumentException("Assignment IDs cannot be null or empty")));
     }
 
     public List<StudentProgress> getStudentProgressForCourse(String courseId) {
         List<Assignment> assignments = assignmentService.getAssignmentsByCourseId(
                 Optional.ofNullable(courseId)
                         .filter(id -> !id.isBlank())
-                        .orElseThrow(() -> new IllegalArgumentException("Course ID cannot be null or blank"))
-        );
+                        .orElseThrow(() -> new IllegalArgumentException("Course ID cannot be null or blank")));
 
         List<String> assignmentIds = assignments.stream()
                 .map(Assignment::getAssignmentId)
@@ -225,7 +241,8 @@ public class SubmissionService {
 
         long totalAssignments = assignments.size();
 
-        List<String> studentRollNumbers = submissionRepository.findDistinctStudentRollNumbersByAssignmentIds(assignmentIds)
+        List<String> studentRollNumbers = submissionRepository
+                .findDistinctStudentRollNumbersByAssignmentIds(assignmentIds)
                 .stream()
                 .map(Submission::getStudentRollNumber)
                 .distinct()
@@ -235,7 +252,10 @@ public class SubmissionService {
                 .map(studentRollNumber -> {
                     double progressPercentage = Optional.of(totalAssignments)
                             .filter(total -> total > 0)
-                            .map(total -> (double) submissionRepository.countByStudentRollNumberAndAssignmentIdInAndStatusAccepted(studentRollNumber, assignmentIds) / total * 100)
+                            .map(total -> (double) submissionRepository
+                                    .countByStudentRollNumberAndAssignmentIdInAndStatusAccepted(studentRollNumber,
+                                            assignmentIds)
+                                    / total * 100)
                             .map(percentage -> Math.round(percentage * 100.0) / 100.0)
                             .orElse(0.0);
 
@@ -266,24 +286,31 @@ public class SubmissionService {
                     progress.setProgressPercentage(progressPercentage);
                     progress.setAverageGrade(averageGrade);
 
-                    Optional<Submission> firstSubmission = submissionRepository.findByStudentRollNumberAndAssignmentIdIn(studentRollNumber, assignmentIds)
+                    Optional<Submission> firstSubmission = submissionRepository
+                            .findByStudentRollNumberAndAssignmentIdIn(studentRollNumber, assignmentIds)
                             .stream()
                             .findFirst();
 
                     progress.setStudentName(firstSubmission.map(Submission::getStudentName).orElse("Unknown"));
-                    progress.setStudentDepartment(firstSubmission.map(Submission::getStudentDepartment).orElse("Unknown"));
+                    progress.setStudentEmail(firstSubmission.map(Submission::getStudentEmail).orElse("Unknown"));
+                    progress.setStudentDepartment(
+                            firstSubmission.map(Submission::getStudentDepartment).orElse("Unknown"));
                     progress.setStudentSemester(firstSubmission.map(Submission::getStudentSemester).orElse("Unknown"));
 
                     Optional.of(firstSubmission)
                             .filter(Optional::isEmpty)
-                            .ifPresent(sub -> log.warn("No submission found for studentRollNumber: {} in courseId: {}", studentRollNumber, courseId));
+                            .ifPresent(sub -> log.warn("No submission found for studentRollNumber: {} in courseId: {}",
+                                    studentRollNumber, courseId));
 
                     log.info("Calculated progress {}% and average grade {} for studentRollNumber: {}, courseId: {}",
-                            progressPercentage, Optional.ofNullable(averageGrade).map(Object::toString).orElse("Not graded"), studentRollNumber, courseId);
+                            progressPercentage,
+                            Optional.ofNullable(averageGrade).map(Object::toString).orElse("Not graded"),
+                            studentRollNumber, courseId);
                     return progress;
                 })
                 .toList();
     }
+
     public String generateStudentProgressCsvForCourse(String courseId) throws IOException {
         String validCourseId = Optional.ofNullable(courseId)
                 .filter(id -> !id.isBlank())
@@ -294,18 +321,26 @@ public class SubmissionService {
             throw new IllegalArgumentException("No student progress data found for course ID: " + validCourseId);
         }
 
+        // Fetch an Assignment to get Course Name and Course Faculty
+        List<Assignment> assignments = assignmentService.getAssignmentsByCourseId(validCourseId);
+        String courseName = assignments.isEmpty() ? "Unknown" : assignments.get(0).getCourseName();
+        String courseFaculty = assignments.isEmpty() ? "Unknown" : assignments.get(0).getCourseFaculty();
+
         StringWriter writer = new StringWriter();
-        writer.write("S.No,Course ID,Student Name,Student Roll Number,Student Department,Student Semester,Progress Percentage,Average Grade\n");
+        writer.write(
+                "S.No,Student Name,Student Roll Number,Student Email,Student Department,Student Semester,Course Name,Course Faculty,Progress Percentage,Average Grade\n");
 
         IntStream.range(0, progressList.size()).forEach(i -> {
             StudentProgress progress = progressList.get(i);
-            writer.write(String.format("%d,%s,%s,%s,%s,%s,%.2f,%s\n",
+            writer.write(String.format("%d,%s,%s,%s,%s,%s,%s,%s,%.2f,%s\n",
                     i + 1,
-                    escapeCsv(validCourseId),
                     escapeCsv(Optional.ofNullable(progress.getStudentName()).orElse("Unknown")),
                     escapeCsv(Optional.ofNullable(progress.getStudentRollNumber()).orElse("Unknown")),
+                    escapeCsv(Optional.ofNullable(progress.getStudentEmail()).orElse("Not provided")),
                     escapeCsv(Optional.ofNullable(progress.getStudentDepartment()).orElse("Unknown")),
                     escapeCsv(Optional.ofNullable(progress.getStudentSemester()).orElse("Unknown")),
+                    escapeCsv(courseName),
+                    escapeCsv(courseFaculty),
                     progress.getProgressPercentage(),
                     escapeCsv(Optional.ofNullable(progress.getAverageGrade())
                             .map(Object::toString)
@@ -322,9 +357,12 @@ public class SubmissionService {
                 .map(GRADE_MAP::get)
                 .orElseThrow(() -> new IllegalArgumentException("Invalid grade: " + grade));
     }
+
     private String escapeCsv(String value) {
         return Optional.ofNullable(value)
-                .map(v -> v.contains(",") || v.contains("\"") || v.contains("\n") ? "\"" + v.replace("\"", "\"\"") + "\"" : v)
+                .map(v -> v.contains(",") || v.contains("\"") || v.contains("\n")
+                        ? "\"" + v.replace("\"", "\"\"") + "\""
+                        : v)
                 .orElse("");
     }
 
@@ -333,6 +371,7 @@ public class SubmissionService {
         private double progressPercentage;
         private Double averageGrade;
         private String studentName;
+        private String studentEmail;
         private String studentDepartment;
         private String studentSemester;
 
@@ -366,6 +405,14 @@ public class SubmissionService {
 
         public void setStudentName(String studentName) {
             this.studentName = studentName;
+        }
+
+        public String getStudentEmail() {
+            return studentEmail;
+        }
+
+        public void setStudentEmail(String studentEmail) {
+            this.studentEmail = studentEmail;
         }
 
         public String getStudentDepartment() {

@@ -2,6 +2,7 @@ package com.assignmentservice.assignmentservice.Service;
 
 import com.assignmentservice.assignmentservice.Model.Grading;
 import com.assignmentservice.assignmentservice.Model.Submission;
+import com.assignmentservice.assignmentservice.Model.Assignment;
 import com.assignmentservice.assignmentservice.Repository.GradingRepository;
 import com.assignmentservice.assignmentservice.Repository.SubmissionRepository;
 import com.opencsv.CSVWriter;
@@ -29,6 +30,9 @@ public class GradingService {
     @Autowired
     private SubmissionRepository submissionRepository;
 
+    @Autowired
+    private AssignmentService assignmentService;
+
     @Transactional
     public Grading autoGenerateGrading(String studentRollNumber, String assignmentId) {
         String validRollNumber = Optional.ofNullable(studentRollNumber)
@@ -40,10 +44,14 @@ public class GradingService {
 
         return gradingRepository.findByStudentRollNumberAndAssignmentId(validRollNumber, validAssignmentId)
                 .orElseGet(() -> {
-                    logger.info("No existing grading entry for studentRollNumber: {}, assignmentId: {}. Auto-generating.", validRollNumber, validAssignmentId);
-                    Submission submission = submissionRepository.findByAssignmentIdAndStudentRollNumber(validAssignmentId, validRollNumber)
+                    logger.info(
+                            "No existing grading entry for studentRollNumber: {}, assignmentId: {}. Auto-generating.",
+                            validRollNumber, validAssignmentId);
+                    Submission submission = submissionRepository
+                            .findByAssignmentIdAndStudentRollNumber(validAssignmentId, validRollNumber)
                             .orElseThrow(() -> {
-                                logger.error("No submission found for studentRollNumber: {}, assignmentId: {}", validRollNumber, validAssignmentId);
+                                logger.error("No submission found for studentRollNumber: {}, assignmentId: {}",
+                                        validRollNumber, validAssignmentId);
                                 return new IllegalStateException("Cannot auto-generate grading: No submission found");
                             });
 
@@ -78,10 +86,13 @@ public class GradingService {
 
         Grading grading = gradingRepository.findByStudentRollNumberAndAssignmentId(validRollNumber, validAssignmentId)
                 .orElseGet(() -> {
-                    logger.info("No existing grading for studentRollNumber: {}, assignmentId: {}. Creating new.", validRollNumber, validAssignmentId);
-                    Submission submission = submissionRepository.findByAssignmentIdAndStudentRollNumber(validAssignmentId, validRollNumber)
+                    logger.info("No existing grading for studentRollNumber: {}, assignmentId: {}. Creating new.",
+                            validRollNumber, validAssignmentId);
+                    Submission submission = submissionRepository
+                            .findByAssignmentIdAndStudentRollNumber(validAssignmentId, validRollNumber)
                             .orElseThrow(() -> {
-                                logger.error("No submission found for studentRollNumber: {}, assignmentId: {}", validRollNumber, validAssignmentId);
+                                logger.error("No submission found for studentRollNumber: {}, assignmentId: {}",
+                                        validRollNumber, validAssignmentId);
                                 return new IllegalStateException("Cannot create grading: No submission found");
                             });
                     Grading newGrading = new Grading();
@@ -114,7 +125,8 @@ public class GradingService {
 
         Grading grading = gradingRepository.findByStudentRollNumberAndAssignmentId(validRollNumber, validAssignmentId)
                 .orElseThrow(() -> {
-                    logger.warn("No grading entry found for studentRollNumber: {}, assignmentId: {}", validRollNumber, validAssignmentId);
+                    logger.warn("No grading entry found for studentRollNumber: {}, assignmentId: {}", validRollNumber,
+                            validAssignmentId);
                     return new IllegalArgumentException("No grading entry found");
                 });
 
@@ -154,8 +166,9 @@ public class GradingService {
 
         StringWriter stringWriter = new StringWriter();
         try (CSVWriter csvWriter = new CSVWriter(stringWriter)) {
-            csvWriter.writeNext(new String[]{"Assignment ID", "Student Name", "Student Roll Number", "Grade", "Feedback", "Graded At"});
-            gradings.forEach(grading -> csvWriter.writeNext(new String[]{
+            csvWriter.writeNext(new String[] { "Assignment ID", "Student Name", "Student Roll Number", "Grade",
+                    "Feedback", "Graded At" });
+            gradings.forEach(grading -> csvWriter.writeNext(new String[] {
                     Optional.ofNullable(grading.getAssignmentId()).orElse(""),
                     Optional.ofNullable(grading.getStudentName()).orElse(""),
                     Optional.ofNullable(grading.getStudentRollNumber()).orElse(""),
@@ -167,37 +180,48 @@ public class GradingService {
         return stringWriter.toString();
     }
 
-    public String generateGradesCsvForAssignment(String assignmentId) throws IOException {
+    public String generateGradingCsvForAssignment(String assignmentId) throws IOException {
+        logger.info("Generating grading CSV for assignmentId: {}", assignmentId);
         String validAssignmentId = Optional.ofNullable(assignmentId)
-                .filter(s -> !s.isBlank())
+                .filter(id -> !id.isBlank())
                 .orElseThrow(() -> new IllegalArgumentException("Assignment ID cannot be null or empty"));
+
+        // Fetch Assignment for Course Name and Title
+        Assignment assignment = assignmentService.getAssignmentById(validAssignmentId)
+                .orElseThrow(() -> new IllegalArgumentException("Assignment not found for ID: " + validAssignmentId));
+        String courseName = assignment.getCourseName();
+        String assignmentTitle = assignment.getTitle();
 
         List<Grading> gradings = gradingRepository.findByAssignmentId(validAssignmentId);
         if (gradings.isEmpty()) {
-            throw new IllegalArgumentException("No gradings found for assignment ID: " + validAssignmentId);
+            throw new IllegalArgumentException("No grading data found for assignment ID: " + validAssignmentId);
         }
 
         StringWriter writer = new StringWriter();
-        writer.write("S.No,Student Name,Student Roll Number,Student Department,Grade\n");
-
+        writer.write(
+                "S.No,Student Name,Student Roll Number,Student Department,Course Name,Assignment Title,Grade\n");
         IntStream.range(0, gradings.size()).forEach(i -> {
             Grading grading = gradings.get(i);
-            Submission submission = submissionRepository.findByAssignmentIdAndStudentRollNumber(grading.getAssignmentId(), grading.getStudentRollNumber())
-                    .orElse(null);
-            writer.write(String.format("%d,%s,%s,%s,%s\n",
+            writer.write(String.format("%d,%s,%s,%s,%s,%s,%s\n",
                     i + 1,
                     escapeCsv(Optional.ofNullable(grading.getStudentName()).orElse("Unknown")),
                     escapeCsv(Optional.ofNullable(grading.getStudentRollNumber()).orElse("Unknown")),
-                    escapeCsv(Optional.ofNullable(submission).map(Submission::getStudentDepartment).orElse("Unknown")),
+                    escapeCsv(Optional.ofNullable(grading.getStudentDepartment()).orElse("Unknown")),
+                    escapeCsv(Optional.ofNullable(courseName).orElse("Unknown")),
+                    escapeCsv(Optional.ofNullable(assignmentTitle).orElse("Unknown")),
                     escapeCsv(Optional.ofNullable(grading.getGrade()).orElse("Not Graded"))));
+
         });
 
+        logger.info("Generated CSV for {} gradings for assignmentId: {}", gradings.size(), validAssignmentId);
         return writer.toString();
     }
 
     private String escapeCsv(String value) {
         return Optional.ofNullable(value)
-                .map(v -> v.contains(",") || v.contains("\"") || v.contains("\n") ? "\"" + v.replace("\"", "\"\"") + "\"" : v)
+                .map(v -> v.contains(",") || v.contains("\"") || v.contains("\n")
+                        ? "\"" + v.replace("\"", "\"\"") + "\""
+                        : v)
                 .orElse("");
     }
 }

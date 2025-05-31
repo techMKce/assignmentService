@@ -23,7 +23,7 @@ import java.util.*;
 @CrossOrigin(origins = "http://localhost:8080")
 @RequestMapping("/api/assignments")
 public class AssignmentController {
-    
+
     private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(AssignmentController.class);
 
     @Autowired
@@ -43,8 +43,8 @@ public class AssignmentController {
             @RequestPart("file") MultipartFile file,
             @RequestParam("resourceLink") String resourceLink) throws IOException {
         try {
-            logger.info("Creating assignment with courseId: {}, courseName: {}, courseFaculty: {}", 
-                        courseId, courseName, courseFaculty);
+            logger.info("Creating assignment with courseId: {}, courseName: {}, courseFaculty: {}",
+                    courseId, courseName, courseFaculty);
             if (courseId == null || courseId.isBlank()) {
                 return ResponseEntity.badRequest().body(new ErrorResponse("Course ID cannot be null or blank"));
             }
@@ -77,7 +77,8 @@ public class AssignmentController {
                 assignment.setDueDate(LocalDateTime.parse(dueDate, formatter));
             } catch (DateTimeParseException e) {
                 return ResponseEntity.badRequest()
-                        .body(new ErrorResponse("Invalid dueDate format; use ISO_LOCAL_DATE_TIME (e.g., 2025-06-01T23:59:00)"));
+                        .body(new ErrorResponse(
+                                "Invalid dueDate format; use ISO_LOCAL_DATE_TIME (e.g., 2025-06-01T23:59:00)"));
             }
 
             String assignmentId = UUID.randomUUID().toString();
@@ -86,7 +87,8 @@ public class AssignmentController {
             String fileNo = fileService.uploadFile(file, assignmentId);
             assignment.setFileNo(fileNo);
             assignment.setFileName(file.getOriginalFilename());
-            logger.info("Set fileNo: {}, fileName: {} for assignmentId: {}", fileNo, file.getOriginalFilename(), assignmentId);
+            logger.info("Set fileNo: {}, fileName: {} for assignmentId: {}", fileNo, file.getOriginalFilename(),
+                    assignmentId);
             assignmentService.saveAssignment(assignment);
 
             Map<String, Object> response = new HashMap<>();
@@ -105,6 +107,7 @@ public class AssignmentController {
         }
     }
 
+
     @PutMapping(consumes = "multipart/form-data")
     public ResponseEntity<?> updateAssignment(
             @RequestParam("assignmentId") String assignmentId,
@@ -116,8 +119,8 @@ public class AssignmentController {
             @RequestParam(value = "dueDate", required = false) String dueDate,
             @RequestPart(value = "file", required = false) MultipartFile file) throws IOException {
         try {
-            logger.info("Updating assignment with ID: {}, courseName: {}, courseFaculty: {}", 
-                        assignmentId, courseName, courseFaculty);
+            logger.info("Updating assignment with ID: {}, courseName: {}, courseFaculty: {}",
+                    assignmentId, courseName, courseFaculty);
             if (assignmentId == null || assignmentId.isBlank()) {
                 return ResponseEntity.badRequest().body(new ErrorResponse("Assignment ID cannot be null or blank"));
             }
@@ -150,20 +153,21 @@ public class AssignmentController {
                     existingAssignment.setDueDate(LocalDateTime.parse(dueDate, formatter));
                 } catch (DateTimeParseException e) {
                     return ResponseEntity.badRequest()
-                            .body(new ErrorResponse("Invalid dueDate format; use ISO_LOCAL_DATE_TIME (e.g., 2025-06-01T23:59:00)"));
+                            .body(new ErrorResponse(
+                                    "Invalid dueDate format; use ISO_LOCAL_DATE_TIME (e.g., 2025-06-01T23:59:00)"));
                 }
             }
             if (file != null && !file.isEmpty()) {
                 if (existingAssignment.getFileNo() != null) {
                     fileService.deleteFileByFileNo(existingAssignment.getFileNo());
-                    logger.info("Deleted old file with fileNo: {} for assignmentId: {}", 
-                                existingAssignment.getFileNo(), assignmentId);
+                    logger.info("Deleted old file with fileNo: {} for assignmentId: {}",
+                            existingAssignment.getFileNo(), assignmentId);
                 }
                 String newFileNo = fileService.uploadFile(file, assignmentId);
                 existingAssignment.setFileNo(newFileNo);
                 existingAssignment.setFileName(file.getOriginalFilename());
-                logger.info("Set new fileNo: {}, fileName: {} for assignmentId: {}", 
-                            newFileNo, file.getOriginalFilename(), assignmentId);
+                logger.info("Set new fileNo: {}, fileName: {} for assignmentId: {}",
+                        newFileNo, file.getOriginalFilename(), assignmentId);
             }
 
             Assignment updatedAssignment = assignmentService.saveAssignment(existingAssignment);
@@ -214,9 +218,9 @@ public class AssignmentController {
                     .body(new ErrorResponse("File not found for fileNo: " + fileNo));
         }
 
-        logger.info("Found file: filename={}, contentType={}", 
-                    gridFSFile.getFilename(), 
-                    gridFSFile.getMetadata().getString("_contentType"));
+        logger.info("Found file: filename={}, contentType={}",
+                gridFSFile.getFilename(),
+                gridFSFile.getMetadata().getString("_contentType"));
 
         return ResponseEntity.ok()
                 .contentType(MediaType.parseMediaType(gridFSFile.getMetadata().getString("_contentType")))
@@ -251,7 +255,7 @@ public class AssignmentController {
         return ResponseEntity.ok(response);
     }
 
-    @GetMapping("/id")
+     @GetMapping("/id")
     public ResponseEntity<?> getAssignmentById(@RequestParam("assignmentId") String assignmentId) {
         if (assignmentId == null || assignmentId.isBlank()) {
             return ResponseEntity.badRequest().body(new ErrorResponse("Assignment ID cannot be null or blank"));
