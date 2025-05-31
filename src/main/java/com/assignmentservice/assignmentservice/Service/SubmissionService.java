@@ -135,7 +135,7 @@ public class SubmissionService {
         RestTemplate restTemplate = new RestTemplate();
         String emailServiceUrl = "http://localhost:8080/api/v1/email/sendRejectEmail";
 
-        URI uri = UriComponentsBuilder.fromHttpUrl(emailServiceUrl)
+        URI uri = UriComponentsBuilder.fromUriString(emailServiceUrl)
                 .queryParam("id", submission.getStudentRollNumber())
                 .build()
                 .toUri();

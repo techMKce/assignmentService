@@ -33,6 +33,8 @@ public class AssignmentController {
     @PostMapping(consumes = "multipart/form-data")
     public ResponseEntity<?> createAssignment(
             @RequestParam("courseId") String courseId,
+            @RequestParam("courseName") String courseName,
+            @RequestParam("courseFaculty") String courseFaculty,
             @RequestParam("title") String title,
             @RequestParam("description") String description,
             @RequestParam("dueDate") String dueDate,
@@ -41,9 +43,11 @@ public class AssignmentController {
         try {
             Assignment assignment = new Assignment();
             assignment.setCourseId(courseId);
+            assignment.setCourseName(courseName);
+            assignment.setCourseFaculty(courseFaculty);
             assignment.setTitle(title);
             assignment.setDescription(description);
-            assignment.setResourceLink(resourceLink); // Store resourceLink
+            assignment.setResourceLink(resourceLink); 
 
             DateTimeFormatter formatter = DateTimeFormatter.ISO_LOCAL_DATE_TIME;
             try {
@@ -98,6 +102,8 @@ public class AssignmentController {
     public ResponseEntity<?> updateAssignment(
             @RequestParam("assignmentId") String assignmentId,
             @RequestParam(value = "courseId", required = false) String courseId,
+            @RequestParam(value = "courseName", required = false) String courseName,
+            @RequestParam(value = "courseFaculty", required = false) String courseFaculty,
             @RequestParam(value = "title", required = false) String title,
             @RequestParam(value = "description", required = false) String description,
             @RequestParam(value = "dueDate", required = false) String dueDate,

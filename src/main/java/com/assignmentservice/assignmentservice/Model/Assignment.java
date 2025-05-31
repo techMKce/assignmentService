@@ -23,6 +23,12 @@ public class Assignment {
     @Field("courseId")
     private String courseId;
 
+    @NotBlank(message =" courseName can't be empty")
+    private String courseName;
+
+    @NotBlank(message = "courseFaculty can't  be empty")
+    private String courseFaculty;
+
     @NotBlank(message = "Title cannot be empty")
     private String title;
 
