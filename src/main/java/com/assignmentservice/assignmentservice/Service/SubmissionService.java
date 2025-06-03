@@ -54,8 +54,7 @@ public class SubmissionService {
             "C", 40.0);
 
     public Submission saveSubmission(String assignmentId, String studentName, String studentRollNumber,
-            String studentEmail,
-            String studentDepartment, String studentSemester, MultipartFile file) throws IOException {
+            String studentEmail, String studentDepartment, String studentSemester, MultipartFile file) throws IOException {
         log.info("Attempting to save submission for studentRollNumber: {}, assignmentId: {}", studentRollNumber,
                 assignmentId);
 
@@ -182,7 +181,6 @@ public class SubmissionService {
                 .filter(assgnId -> !assgnId.isBlank())
                 .orElseThrow(() -> new IllegalArgumentException("Assignment ID cannot be null or blank"));
 
-        // Verify Assignment exists
         Assignment assignment = assignmentService.getAssignmentById(validAssignmentId)
                 .orElseThrow(() -> new IllegalArgumentException("Assignment not found for ID: " + validAssignmentId));
         log.info("Assignment found: title={}", assignment.getTitle());
@@ -250,14 +248,12 @@ public class SubmissionService {
 
         return studentRollNumbers.stream()
                 .map(studentRollNumber -> {
-                    double progressPercentage = Optional.of(totalAssignments)
-                            .filter(total -> total > 0)
-                            .map(total -> (double) submissionRepository
-                                    .countByStudentRollNumberAndAssignmentIdInAndStatusAccepted(studentRollNumber,
-                                            assignmentIds)
-                                    / total * 100)
-                            .map(percentage -> Math.round(percentage * 100.0) / 100.0)
-                            .orElse(0.0);
+                    double progressPercentage = totalAssignments > 0 ?
+                            ((double) submissionRepository
+                                    .countByStudentRollNumberAndAssignmentIdInAndStatusAccepted(studentRollNumber, assignmentIds)
+                                    / totalAssignments) * 100 :
+                            0.0;
+                    progressPercentage = Math.round(progressPercentage * 100.0) / 100.0;
 
                     double totalGrade = assignmentIds.stream()
                             .map(id -> gradingRepository.findByStudentRollNumberAndAssignmentId(studentRollNumber, id))
@@ -276,10 +272,9 @@ public class SubmissionService {
                             .filter(grade -> grade != null && !grade.isBlank())
                             .count();
 
-                    Double averageGrade = Optional.of(gradedAssignments)
-                            .filter(count -> count > 0)
-                            .map(count -> Math.round((totalGrade / count) * 100.0) / 100.0)
-                            .orElse(null);
+                    Double averageGrade = gradedAssignments > 0 ?
+                            Math.round((totalGrade / gradedAssignments) * 100.0) / 100.0 :
+                            null;
 
                     StudentProgress progress = new StudentProgress();
                     progress.setStudentRollNumber(studentRollNumber);
@@ -293,14 +288,31 @@ public class SubmissionService {
 
                     progress.setStudentName(firstSubmission.map(Submission::getStudentName).orElse("Unknown"));
                     progress.setStudentEmail(firstSubmission.map(Submission::getStudentEmail).orElse("Unknown"));
-                    progress.setStudentDepartment(
-                            firstSubmission.map(Submission::getStudentDepartment).orElse("Unknown"));
+                    progress.setStudentDepartment(firstSubmission.map(Submission::getStudentDepartment).orElse("Unknown"));
                     progress.setStudentSemester(firstSubmission.map(Submission::getStudentSemester).orElse("Unknown"));
 
                     Optional.of(firstSubmission)
                             .filter(Optional::isEmpty)
                             .ifPresent(sub -> log.warn("No submission found for studentRollNumber: {} in courseId: {}",
                                     studentRollNumber, courseId));
+
+                    // Populate assignmentGrades
+                     List<StudentProgress.AssignmentGrade> assignmentGrades = assignments.stream()
+                            .map(assignment -> {
+                                StudentProgress.AssignmentGrade assignmentGrade = new StudentProgress.AssignmentGrade();
+                                assignmentGrade.setAssignmentTitle(assignment.getTitle());
+                                double grade = gradingRepository.findByStudentRollNumberAndAssignmentId(
+                                        studentRollNumber, assignment.getAssignmentId())
+                                        .map(g -> Optional.ofNullable(g.getGrade())
+                                                .filter(gr -> !gr.isBlank())
+                                                .map(this::convertLetterGradeToNumber)
+                                                .orElse(0.0))
+                                        .orElse(0.0);
+                                assignmentGrade.setGrade(grade);
+                                return assignmentGrade;
+                            })
+                            .toList();
+                    progress.setAssignmentGrades(assignmentGrades);
 
                     log.info("Calculated progress {}% and average grade {} for studentRollNumber: {}, courseId: {}",
                             progressPercentage,
@@ -321,18 +333,22 @@ public class SubmissionService {
             throw new IllegalArgumentException("No student progress data found for course ID: " + validCourseId);
         }
 
-        // Fetch an Assignment to get Course Name and Course Faculty
         List<Assignment> assignments = assignmentService.getAssignmentsByCourseId(validCourseId);
         String courseName = assignments.isEmpty() ? "Unknown" : assignments.get(0).getCourseName();
         String courseFaculty = assignments.isEmpty() ? "Unknown" : assignments.get(0).getCourseFaculty();
 
         StringWriter writer = new StringWriter();
-        writer.write(
-                "S.No,Student Name,Student Roll Number,Student Email,Student Department,Student Semester,Course Name,Course Faculty,Progress Percentage,Average Grade\n");
+        StringBuilder header = new StringBuilder(
+                "S.No,Student Name,Student Roll Number,Student Email,Student Department,Student Semester,Course Name,Course Faculty,Progress Percentage,Average Grade");
+        for (Assignment assignment : assignments) {
+            header.append(",").append(escapeCsv(assignment.getTitle()));
+        }
+        header.append("\n");
+        writer.write(header.toString());
 
         IntStream.range(0, progressList.size()).forEach(i -> {
             StudentProgress progress = progressList.get(i);
-            writer.write(String.format("%d,%s,%s,%s,%s,%s,%s,%s,%.2f,%s\n",
+            StringBuilder row = new StringBuilder(String.format("%d,%s,%s,%s,%s,%s,%s,%s,%.2f,%s",
                     i + 1,
                     escapeCsv(Optional.ofNullable(progress.getStudentName()).orElse("Unknown")),
                     escapeCsv(Optional.ofNullable(progress.getStudentRollNumber()).orElse("Unknown")),
@@ -345,8 +361,26 @@ public class SubmissionService {
                     escapeCsv(Optional.ofNullable(progress.getAverageGrade())
                             .map(Object::toString)
                             .orElse("Not Graded"))));
+
+            for (Assignment assignment : assignments) {
+                String assignmentId = assignment.getAssignmentId();
+                Optional<com.assignmentservice.assignmentservice.Model.Grading> grading = 
+                    gradingRepository.findByStudentRollNumberAndAssignmentId(
+                        progress.getStudentRollNumber(), assignmentId);
+                double gradeValue = grading
+                        .map(g -> Optional.ofNullable(g.getGrade())
+                                .filter(grade -> !grade.isBlank())
+                                .map(this::convertLetterGradeToNumber)
+                                .orElse(0.0))
+                        .orElse(0.0);
+                row.append(",").append(String.format("%.2f", gradeValue));
+            }
+            row.append("\n");
+            writer.write(row.toString());
         });
 
+        log.info("Generated CSV for courseId: {} with {} students and {} assignments", 
+                validCourseId, progressList.size(), assignments.size());
         return writer.toString();
     }
 
@@ -374,6 +408,7 @@ public class SubmissionService {
         private String studentEmail;
         private String studentDepartment;
         private String studentSemester;
+        private List<AssignmentGrade> assignmentGrades;
 
         public String getStudentRollNumber() {
             return studentRollNumber;
@@ -429,6 +464,35 @@ public class SubmissionService {
 
         public void setStudentSemester(String studentSemester) {
             this.studentSemester = studentSemester;
+        }
+
+        public List<AssignmentGrade> getAssignmentGrades() {
+            return assignmentGrades;
+        }
+
+        public void setAssignmentGrades(List<AssignmentGrade> assignmentGrades) {
+            this.assignmentGrades = assignmentGrades;
+        }
+
+        public static class AssignmentGrade {
+            private String assignmentTitle;
+            private double grade;
+
+            public String getAssignmentTitle() {
+                return assignmentTitle;
+            }
+
+            public void setAssignmentTitle(String assignmentTitle) {
+                this.assignmentTitle = assignmentTitle;
+            }
+
+            public double getGrade() {
+                return grade;
+            }
+
+            public void setGrade(double grade) {
+                this.grade = grade;
+            }
         }
     }
 }

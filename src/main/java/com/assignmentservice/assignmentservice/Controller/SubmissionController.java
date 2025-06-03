@@ -238,15 +238,23 @@ public class SubmissionController {
                                                                 .contentType(MediaType.parseMediaType("text/csv"))
                                                                 .body(csvContent);
                                         } catch (IllegalArgumentException e) {
+                                                logger.error("Error generating progress CSV for courseId: {}: {}", id,
+                                                                e.getMessage());
                                                 return ResponseEntity.badRequest()
                                                                 .body(new ErrorResponse("Error: " + e.getMessage()));
                                         } catch (IOException e) {
-                                                return ResponseEntity.status(500).body(new ErrorResponse(
-                                                                "Error generating CSV: " + e.getMessage()));
+                                                logger.error("IO error generating progress CSV for courseId: {}: {}",
+                                                                id, e.getMessage());
+                                                return ResponseEntity.status(500)
+                                                                .body(new ErrorResponse("Error generating CSV: "
+                                                                                + e.getMessage()));
                                         }
                                 })
-                                .orElseGet(() -> ResponseEntity.badRequest()
-                                                .body(new ErrorResponse("Course ID cannot be null or blank")));
+                                .orElseGet(() -> {
+                                        logger.error("Course ID is null or blank");
+                                        return ResponseEntity.badRequest()
+                                                        .body(new ErrorResponse("Course ID cannot be null or blank"));
+                                });
         }
 
         @GetMapping("/grade/average")
@@ -300,12 +308,12 @@ public class SubmissionController {
         }
 
         private double convertLetterGradeToNumber(String grade) {
-        return Optional.ofNullable(grade)
-                .filter(g -> !g.isBlank())
-                .map(String::toUpperCase)
-                .map(GRADE_MAP::get)
-                .orElseThrow(() -> new IllegalArgumentException("Invalid grade: " + grade));
-    }
+                return Optional.ofNullable(grade)
+                                .filter(g -> !g.isBlank())
+                                .map(String::toUpperCase)
+                                .map(GRADE_MAP::get)
+                                .orElseThrow(() -> new IllegalArgumentException("Invalid grade: " + grade));
+        }
 
         @Data
         public static class UpdateSubmissionStatusRequest {
