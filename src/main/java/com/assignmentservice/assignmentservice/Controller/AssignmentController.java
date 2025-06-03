@@ -117,6 +117,7 @@ public class AssignmentController {
             @RequestParam(value = "title", required = false) String title,
             @RequestParam(value = "description", required = false) String description,
             @RequestParam(value = "dueDate", required = false) String dueDate,
+            @RequestParam(value = "resourceLink", required =false) String resourceLink,
             @RequestPart(value = "file", required = false) MultipartFile file) throws IOException {
         try {
             logger.info("Updating assignment with ID: {}, courseName: {}, courseFaculty: {}",
@@ -146,6 +147,9 @@ public class AssignmentController {
             }
             if (description != null && !description.isBlank()) {
                 existingAssignment.setDescription(description);
+            }
+            if (resourceLink !=null && !resourceLink.isBlank()) {
+                existingAssignment.setResourceLink(resourceLink);
             }
             if (dueDate != null && !dueDate.isBlank()) {
                 DateTimeFormatter formatter = DateTimeFormatter.ISO_LOCAL_DATE_TIME;
