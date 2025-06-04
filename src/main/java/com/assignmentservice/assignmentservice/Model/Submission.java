@@ -2,14 +2,12 @@ package com.assignmentservice.assignmentservice.Model;
 
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
-import org.springframework.data.mongodb.core.mapping.Field;
-
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import java.time.LocalDateTime;
-import jakarta.validation.constraints.NotNull;
 
 @Data
 @AllArgsConstructor
@@ -32,14 +30,13 @@ public class Submission {
     @NotBlank(message = "Course faculty cannot be empty")
     private String courseFaculty;
 
-    @NotBlank(message = "Student name is required")
+    @NotBlank(message = "Student name is important")
     private String studentName;
 
     @NotBlank(message = "Student roll number is required")
     private String studentRollNumber;
-    
-    @Field("studentEmail")
-    private String studentEmail;
+
+    private String studentEmail; // Optional
 
     @NotBlank(message = "Student department is required")
     private String studentDepartment;
@@ -52,6 +49,11 @@ public class Submission {
 
     @NotBlank(message = "File number cannot be empty")
     private String fileNo;
+
+    @NotBlank(message = "File name cannot be empty")
+    private String fileName;
+
+    private Long fileSize; // Store in bytes
 
     @NotBlank(message = "Status cannot be empty")
     private String status = "Accepted";

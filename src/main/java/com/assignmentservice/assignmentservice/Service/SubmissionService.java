@@ -53,48 +53,45 @@ public class SubmissionService {
             "C+", 50.0,
             "C", 40.0);
 
-    public Submission saveSubmission(String assignmentId, String studentName, String studentRollNumber,
-            String studentEmail, String studentDepartment, String studentSemester, MultipartFile file) throws IOException {
-        log.info("Attempting to save submission for studentRollNumber: {}, assignmentId: {}", studentRollNumber,
-                assignmentId);
+   public Submission saveSubmission(String assignmentId, String studentName, String studentRollNumber, String studentEmail, String studentDepartment, String studentSemester, MultipartFile file) throws IOException {
+    log.info("Attempting to save submission for studentRollNumber: {}, assignmentId: {}", studentRollNumber, assignmentId);
 
-        Assignment assignment = assignmentService.getAssignmentById(
-                Optional.ofNullable(assignmentId)
-                        .filter(id -> !id.isBlank())
-                        .orElseThrow(() -> new IllegalArgumentException("Assignment ID cannot be null or blank")))
-                .orElseThrow(() -> new IllegalArgumentException("Assignment not found for ID: " + assignmentId));
+    Assignment assignment = assignmentService.getAssignmentById(
+            Optional.ofNullable(assignmentId)
+                    .filter(id -> !id.isBlank())
+                    .orElseThrow(() -> new IllegalArgumentException("Assignment ID cannot be null or blank"))
+    ).orElseThrow(() -> new IllegalArgumentException("Assignment not found for ID: " + assignmentId));
 
-        submissionRepository.findByAssignmentIdAndStudentRollNumber(assignmentId, studentRollNumber)
-                .ifPresent(submission -> {
-                    submissionRepository.delete(submission);
-                    todoRepository.deleteByStudentRollNumberAndAssignmentId(studentRollNumber, assignmentId);
-                    fileService.deleteFileByFileNo(submission.getFileNo());
-                    log.info("Deleted existing submission for studentRollNumber: {}, assignmentId: {}",
-                            studentRollNumber, assignmentId);
-                });
+    submissionRepository.findByAssignmentIdAndStudentRollNumber(assignmentId, studentRollNumber)
+            .ifPresent(submission -> {
+                submissionRepository.delete(submission);
+                todoRepository.deleteByStudentRollNumberAndAssignmentId(studentRollNumber, assignmentId);
+                fileService.deleteFileByFileNo(submission.getFileNo());
+                log.info("Deleted existing submission for studentRollNumber: {}, assignmentId: {}", studentRollNumber, assignmentId);
+            });
 
-        String fileNo = fileService.uploadSubmissionFile(file, UUID.randomUUID().toString(), studentRollNumber,
-                assignmentId);
-        Submission submission = new Submission();
-        submission.setId(UUID.randomUUID().toString());
-        submission.setAssignmentId(assignmentId);
-        submission.setCourseId(assignment.getCourseId());
-        submission.setCourseName(assignment.getCourseName());
-        submission.setCourseFaculty(assignment.getCourseFaculty());
-        submission.setStudentName(studentName);
-        submission.setStudentRollNumber(studentRollNumber);
-        submission.setStudentEmail(studentEmail);
-        submission.setStudentDepartment(studentDepartment);
-        submission.setStudentSemester(studentSemester);
-        submission.setSubmittedAt(LocalDateTime.now());
-        submission.setFileNo(fileNo);
-        submission.setStatus("Accepted");
+    String fileNo = fileService.uploadSubmissionFile(file, UUID.randomUUID().toString(), studentRollNumber, assignmentId);
+    Submission submission = new Submission();
+    submission.setId(UUID.randomUUID().toString());
+    submission.setAssignmentId(assignmentId);
+    submission.setCourseId(assignment.getCourseId());
+    submission.setCourseName(assignment.getCourseName());
+    submission.setCourseFaculty(assignment.getCourseFaculty());
+    submission.setStudentName(studentName);
+    submission.setStudentRollNumber(studentRollNumber);
+    submission.setStudentEmail(studentEmail);
+    submission.setStudentDepartment(studentDepartment);
+    submission.setStudentSemester(studentSemester);
+    submission.setSubmittedAt(LocalDateTime.now());
+    submission.setFileNo(fileNo);
+    submission.setFileName(file.getOriginalFilename());
+    submission.setFileSize(file.getSize()); 
+    submission.setStatus("Accepted");
 
-        Submission savedSubmission = submissionRepository.save(submission);
-        log.info("Successfully saved submission for studentRollNumber: {}, assignmentId: {}", studentRollNumber,
-                assignmentId);
-        return savedSubmission;
-    }
+    Submission savedSubmission = submissionRepository.save(submission);
+    log.info("Successfully saved submission for studentRollNumber: {}, assignmentId: {}", studentRollNumber, assignmentId);
+    return savedSubmission;
+}
 
     public Submission updateSubmissionStatus(String submissionId, String status, String assignmentTitle) {
         Submission submission = Optional.ofNullable(submissionId)
