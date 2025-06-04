@@ -21,7 +21,7 @@ import java.io.IOException;
 import java.util.*;
 
 @RestController
-@RequestMapping("/api/submissions")
+@RequestMapping("/api/v1/submissions")
 public class SubmissionController {
 
         private static final Logger logger = LoggerFactory.getLogger(SubmissionController.class);

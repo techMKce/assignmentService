@@ -21,7 +21,7 @@ import org.slf4j.LoggerFactory;
 
 @RestController
 @CrossOrigin(origins = "http://localhost:8080")
-@RequestMapping("/api/gradings")
+@RequestMapping("/api/v1/gradings")
 public class GradingController {
 
     private static final Logger logger = LoggerFactory.getLogger(GradingController.class);

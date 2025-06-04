@@ -21,7 +21,7 @@ import java.util.*;
 
 @RestController
 @CrossOrigin(origins = "http://localhost:8080")
-@RequestMapping("/api/assignments")
+@RequestMapping("/api/v1/assignments")
 public class AssignmentController {
 
     private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(AssignmentController.class);

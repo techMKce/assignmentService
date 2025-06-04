@@ -11,7 +11,7 @@ import java.util.*;
 
 @RestController
 @CrossOrigin(origins = "http://localhost:8080")
-@RequestMapping("/api/todos")
+@RequestMapping("/api/v1/todos")
 public class TodoController {
 
     private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(TodoController.class);
