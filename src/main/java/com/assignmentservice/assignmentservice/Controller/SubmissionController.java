@@ -55,8 +55,9 @@ public class SubmissionController {
             @RequestParam("studentRollNumber") String studentRollNumber,
             @RequestParam("studentDepartment") String studentDepartment,
             @RequestParam("studentSemester") String studentSemester,
+            @RequestParam(value = "studentEmail", required = false) String studentEmail,
             @RequestPart("file") MultipartFile file) throws IOException {
-        Submission submission = submissionService.saveSubmission(assignmentId, studentName, studentRollNumber, studentDepartment, studentSemester, file);
+       Submission submission = submissionService.saveSubmission(assignmentId, studentName, studentRollNumber, studentDepartment, studentSemester, file, studentEmail);
         return ResponseEntity.ok(Map.of(
                 "message", "Submission created successfully",
                 "submissionId", submission.getId()
@@ -86,17 +87,17 @@ public class SubmissionController {
     }
 
     @GetMapping
-    public ResponseEntity<?> getSubmissionsByAssignmentId(@RequestParam("assignmentId") String assignmentId) {
-        List<Submission> submissions = submissionService.getSubmissionsByAssignmentId(
-                Optional.ofNullable(assignmentId)
-                        .filter(id -> !id.isBlank())
-                        .orElseThrow(() -> new IllegalArgumentException("Assignment ID cannot be null or blank"))
-        );
-        return ResponseEntity.ok(Map.of(
-                "message", "Submissions retrieved successfully",
-                "submissions", submissions
-        ));
-    }
+public ResponseEntity<?> getSubmissionsByAssignmentId(@RequestParam("assignmentId") String assignmentId) {
+    List<Submission> submissions = submissionService.getSubmissionsByAssignmentId(
+            Optional.ofNullable(assignmentId)
+                    .filter(id -> !id.isBlank())
+                    .orElseThrow(() -> new IllegalArgumentException("Assignment ID cannot be null or blank"))
+    );
+    return ResponseEntity.ok(Map.of(
+            "message", "Submissions retrieved successfully",
+            "submissions", submissions
+    ));
+}
 
     @GetMapping("/download")
     public ResponseEntity<?> downloadSubmission(@RequestParam("submissionId") String submissionId) throws IOException {

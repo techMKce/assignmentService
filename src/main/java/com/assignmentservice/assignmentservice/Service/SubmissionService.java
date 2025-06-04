@@ -55,10 +55,10 @@ public class SubmissionService {
             "C", 40.0
     );
 
-    public Submission saveSubmission(String assignmentId, String studentName, String studentRollNumber, String studentDepartment, String studentSemester, MultipartFile file) throws IOException {
+    public Submission saveSubmission(String assignmentId, String studentName, String studentRollNumber, String studentDepartment, String studentSemester, MultipartFile file, String studentEmail) throws IOException {
         log.info("Attempting to save submission for studentRollNumber: {}, assignmentId: {}", studentRollNumber, assignmentId);
 
-        assignmentService.getAssignmentById(
+        Assignment assignment = assignmentService.getAssignmentById(
                 Optional.ofNullable(assignmentId)
                         .filter(id -> !id.isBlank())
                         .orElseThrow(() -> new IllegalArgumentException("Assignment ID cannot be null or blank"))
@@ -76,12 +76,18 @@ public class SubmissionService {
         Submission submission = new Submission();
         submission.setId(UUID.randomUUID().toString());
         submission.setAssignmentId(assignmentId);
+        submission.setCourseId(assignment.getCourseId());
+        submission.setCourseName(assignment.getCourseName());
+        submission.setCourseFaculty(assignment.getCourseFaculty());
         submission.setStudentName(studentName);
         submission.setStudentRollNumber(studentRollNumber);
+        submission.setStudentEmail(studentEmail);
         submission.setStudentDepartment(studentDepartment);
         submission.setStudentSemester(studentSemester);
         submission.setSubmittedAt(LocalDateTime.now());
         submission.setFileNo(fileNo);
+        submission.setFileName(file.getOriginalFilename());
+        submission.setFileSize(file.getSize());
         submission.setStatus("Accepted");
 
         Submission savedSubmission = submissionRepository.save(submission);
@@ -135,7 +141,7 @@ public class SubmissionService {
         RestTemplate restTemplate = new RestTemplate();
         String emailServiceUrl = "http://localhost:8080/api/v1/email/sendRejectEmail";
 
-        URI uri = UriComponentsBuilder.fromHttpUrl(emailServiceUrl)
+        URI uri = UriComponentsBuilder.fromUriString(emailServiceUrl)
                 .queryParam("id", submission.getStudentRollNumber())
                 .build()
                 .toUri();
