@@ -53,7 +53,7 @@ public class Submission {
     @NotBlank(message = "File name cannot be empty")
     private String fileName;
 
-    private Long fileSize; // Store in bytes
+    private Long fileSize; 
 
     @NotBlank(message = "Status cannot be empty")
     private String status = "Accepted";

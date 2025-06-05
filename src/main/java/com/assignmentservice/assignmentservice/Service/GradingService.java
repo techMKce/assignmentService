@@ -217,6 +217,18 @@ public class GradingService {
         return writer.toString();
     }
 
+    // New method to fetch a specific grading by studentRollNumber and assignmentId
+    public Optional<Grading> getGradingByStudentRollNumberAndAssignmentId(String studentRollNumber, String assignmentId) {
+        String validRollNumber = Optional.ofNullable(studentRollNumber)
+                .filter(s -> !s.isBlank())
+                .orElseThrow(() -> new IllegalArgumentException("Student Roll Number cannot be null or empty"));
+        String validAssignmentId = Optional.ofNullable(assignmentId)
+                .filter(s -> !s.isBlank())
+                .orElseThrow(() -> new IllegalArgumentException("Assignment ID cannot be null or empty"));
+
+        return gradingRepository.findByStudentRollNumberAndAssignmentId(validRollNumber, validAssignmentId);
+    }
+
     private String escapeCsv(String value) {
         return Optional.ofNullable(value)
                 .map(v -> v.contains(",") || v.contains("\"") || v.contains("\n")

@@ -48,22 +48,22 @@ public class SubmissionController {
                         "C", 40.0);
 
         @PostMapping(consumes = "multipart/form-data")
-public ResponseEntity<?> submitAssignment(
-    @RequestParam("assignmentId") String assignmentId,
-    @RequestParam("studentName") String studentName,
-    @RequestParam("studentRollNumber") String studentRollNumber,
-    @RequestParam(value = "studentEmail", required = false) String studentEmail,
-    @RequestParam("studentDepartment") String studentDepartment,
-    @RequestParam("studentSemester") String studentSemester,
-    @RequestPart("file") MultipartFile file) throws IOException {
-    Submission submission = submissionService.saveSubmission(
-        assignmentId, studentName, studentRollNumber, studentEmail, studentDepartment,
-        studentSemester, file);
-    return ResponseEntity.ok(Map.of(
-        "message", "Submission created successfully",
-        "submission", submission // Return full submission object
-    ));
-}
+        public ResponseEntity<?> submitAssignment(
+                        @RequestParam("assignmentId") String assignmentId,
+                        @RequestParam("studentName") String studentName,
+                        @RequestParam("studentRollNumber") String studentRollNumber,
+                        @RequestParam(value = "studentEmail", required = false) String studentEmail,
+                        @RequestParam("studentDepartment") String studentDepartment,
+                        @RequestParam("studentSemester") String studentSemester,
+                        @RequestPart("file") MultipartFile file) throws IOException {
+                Submission submission = submissionService.saveSubmission(
+                                assignmentId, studentName, studentRollNumber, studentEmail, studentDepartment,
+                                studentSemester, file);
+                return ResponseEntity.ok(Map.of(
+                                "message", "Submission created successfully",
+                                "submission", submission // Return full submission object
+                ));
+        }
 
         @PostMapping("/status")
         public ResponseEntity<?> updateSubmissionStatus(@RequestBody UpdateSubmissionStatusRequest request) {

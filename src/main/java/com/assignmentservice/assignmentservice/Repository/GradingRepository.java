@@ -16,5 +16,7 @@ public interface GradingRepository extends MongoRepository<Grading, String> {
     @Query("{ 'assignmentId': ?0 }")
     List<Grading> findByAssignmentId(String assignmentId);
 
+     Optional<Grading> getGradingByStudentRollNumberAndAssignmentId(String studentRollNumber, String assignmentId);
+
     void deleteByStudentRollNumberAndAssignmentId(String studentRollNumber, String assignmentId);
 }

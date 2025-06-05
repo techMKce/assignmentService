@@ -123,6 +123,37 @@ public class GradingController {
                             .body(Map.of("message", "Assignment ID cannot be null or blank"));
                 });
     }
+    
+    // New endpoint to fetch a specific grading by studentRollNumber and assignmentId
+    @GetMapping("/grade")
+    public ResponseEntity<?> getGradingByStudentAndAssignment(
+            @RequestParam("studentRollNumber") String studentRollNumber,
+            @RequestParam("assignmentId") String assignmentId) {
+        return Optional.ofNullable(studentRollNumber)
+                .filter(s -> !s.isBlank())
+                .flatMap(roll -> Optional.ofNullable(assignmentId)
+                        .filter(a -> !a.isBlank())
+                        .map(a -> {
+                            try {
+                                Optional<Grading> grading = gradingService.getGradingByStudentRollNumberAndAssignmentId(
+                                        studentRollNumber, assignmentId);
+                                if (grading.isPresent()) {
+                                    return ResponseEntity.ok(Map.of(
+                                            "message", "Grading retrieved successfully",
+                                            "grading", grading.get()));
+                                } else {
+                                    return ResponseEntity.ok(Map.of(
+                                            "message", "No grading found",
+                                            "grading", null));
+                                }
+                            } catch (Exception e) {
+                                return ResponseEntity.status(500)
+                                        .body(new ErrorResponse("Error retrieving grading: " + e.getMessage()));
+                            }
+                        }))
+                .orElseGet(() -> ResponseEntity.badRequest()
+                        .body(new ErrorResponse("Student Roll Number and Assignment ID cannot be null or blank")));
+    }
 
     @DeleteMapping
     public ResponseEntity<?> deleteAssignedGrade(@RequestBody GradeAssignmentRequest request) {
